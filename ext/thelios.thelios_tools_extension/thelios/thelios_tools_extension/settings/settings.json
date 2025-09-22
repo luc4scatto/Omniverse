@@ -1,0 +1,32 @@
+{
+    "keys": {
+        "db_key": "Driver={SQL Server}; Server=10.189.24.40; uid=rendering_dep; pwd=251_ee5FJK?58fde723c8cf9c!; Trusted_Connection=No;"
+    },
+    "paths": {
+        "ext_dir": "//10.189.88.1/Company/Prototyping_PD/Rendering/Omniverse/ext/thelios.thelios_tools_extension/thelios/thelios_tools_extension",
+        "style": "//10.189.88.1/Company/Prototyping_PD/Rendering/Omniverse/ext/thelios.thelios_tools_extension/thelios/thelios_tools_extension/tools/style",
+        "models": {
+            "model1": "C:/Users/username/Documents/models/model1.pkl",
+            "model2": "C:/Users/username/Documents/models/model2.pkl"
+        },
+        "resources": [
+            "C:/Users/username/Documents/resources/resource1.txt",
+            "C:/Users/username/Documents/resources/resource2.txt"
+        ]
+    },
+    "mode":{
+        "genres":[
+            "Optical - Man",
+            "Optical - Woman",
+            "Sun - Man",
+            "Sun - Woman",
+            "All Man",
+            "All Woman"
+        ]
+
+    },
+    "settings": {
+        "max_threads": 4,
+        "debug_mode": false
+    }
+}
