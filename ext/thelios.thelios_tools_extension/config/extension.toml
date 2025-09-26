@@ -26,13 +26,16 @@ repository = "https://github.com/NVIDIA-Omniverse/kit-app-template"  # URL of th
 
 
 [settings]
-
+fswatcher.enabled = true
+fswatcher.patterns = ["*.py", "*.toml"]
+fswatcher.paths = ["."]
+reloadable = true
 
 [[python.module]]  # Main python module this extension provides, it will be publicly available as "import thelios.thelios_tools_extension"
 name = "thelios.thelios_tools_extension"
 
 [python.pipapi]
-requirements = ["pyodbc"]
+requirements = ["pyodbc","pxr"]
 use_online_index = true
 
 [documentation]

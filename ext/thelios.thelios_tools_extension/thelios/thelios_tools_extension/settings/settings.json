@@ -3,10 +3,11 @@
         "db_key": "Driver={SQL Server}; Server=10.189.24.40; uid=rendering_dep; pwd=251_ee5FJK?58fde723c8cf9c!; Trusted_Connection=No;"
     },
     "paths": {
-        "ext_dir": "//10.189.88.1/Company/Prototyping_PD/Rendering/Omniverse/ext/thelios.thelios_tools_extension/thelios/thelios_tools_extension",
-        "style": "//10.189.88.1/Company/Prototyping_PD/Rendering/Omniverse/ext/thelios.thelios_tools_extension/thelios/thelios_tools_extension/tools/style",
-        "models": {
-            "model1": "C:/Users/username/Documents/models/model1.pkl",
+        
+        "ext_dir": "H:\\Prototyping_PD\\Rendering\\Omniverse\\ext\\thelios.thelios_tools_extension\\thelios\\thelios_tools_extension",
+        "style": "H:\\Prototyping_PD\\Rendering\\Omniverse\\ext\\thelios.thelios_tools_extension\\thelios\\thelios_tools_extension\\tools\\style",
+        "usd_dir": {
+            "main": "H:\\Prototyping_PD\\Rendering\\USDProject\\USD\\DIOR",
             "model2": "C:/Users/username/Documents/models/model2.pkl"
         },
         "resources": [

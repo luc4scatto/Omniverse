@@ -1,10 +1,5 @@
 import pyodbc 
-"""
-season = "262" 
-brand = "Dior Homme"
-category = "Optical - Man"
-db_key = "Driver={SQL Server}; Server=10.189.24.40; uid=rendering_dep; pwd=251_ee5FJK?58fde723c8cf9c!; Trusted_Connection=No;"
-"""
+
 def get_plm_data(db_key, season, brand, category):
     
     #Connect to PLM DB
