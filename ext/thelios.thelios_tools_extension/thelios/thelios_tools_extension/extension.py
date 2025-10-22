@@ -42,9 +42,11 @@ Copyright: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserv
 
 import omni.ext
 import omni.ui as ui
+from omni.kit.window.filepicker import FilePickerDialog
 import omni.usd
 from omni.ui import color as cl
 from pxr import Usd, UsdGeom, Sdf
+from omni.kit.notification_manager import post_notification, NotificationStatus
 
 import json
 import sys
@@ -102,8 +104,12 @@ if config:
 query_dir = f"{ext_fld}/tools/queries"
 style_dir = f"{ext_fld}/tools/style"
 usd_dir = f"{ext_fld}/tools/usd"
+render_dir = f"{ext_fld}/tools/render"
+templates_dir = f"{ext_fld}\\tools\\templates"
 
-add_fld = [query_dir, style_dir, usd_dir]
+export_path = ""
+
+add_fld = [query_dir, style_dir, usd_dir, templates_dir, render_dir]
 
 # Add custom module paths to sys.path
 for fld in add_fld:
@@ -111,7 +117,7 @@ for fld in add_fld:
         sys.path.append(fld)
         
 # Import custom modules
-import brand_query, plm_query, style_widgets, usd_tools
+import brand_query, plm_query, style_widgets, usd_tools, template_tools #, render_tools
 
 # Setup UI styles
 DARK_WINDOW_STYLE = style_widgets.window_style()
@@ -169,6 +175,8 @@ class TheliosExtension(omni.ext.IExt):
         
         # UI Data models
         self.int_model = ui.SimpleIntModel(262)
+        self.frame_model = ui.SimpleIntModel(8)
+        self.int_filter_model = ui.SimpleIntModel(262)
         self.model_model = ui.SimpleStringModel()
         self.brand_string_model = ui.SimpleStringModel()
         self.type_string_model = ui.SimpleStringModel()
@@ -176,6 +184,7 @@ class TheliosExtension(omni.ext.IExt):
         # State management
         self.show_labels = False
         self.checkbox_data = []
+        self.apply_filter = False  # Flag for filtering state
                 
     def set_style_dark(self):
         """
@@ -186,7 +195,280 @@ class TheliosExtension(omni.ext.IExt):
         """
         self._window_Frame.set_style(DARK_WINDOW_STYLE)
         
-    def _build_dropdown_frame_all_collection(self):
+    def _dropdown_import_template_UI(self):
+        with ui.CollapsableFrame(title="Import Template Scene ", style=CollapsableFrame_style):
+            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                
+                def like_radio(model, first, second):
+                    """Turn on the model and turn off two checkboxes"""
+                    if model.get_value_as_bool():
+                        model.set_value(True)
+                        first.model.set_value(False)
+                        second.model.set_value(False)
+                        
+                #ui.Spacer(height=2)    
+                
+                with ui.HStack(spacing=12):
+                    with ui.HStack():
+                        abc_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("ABC", name="label")
+                        
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})  
+                    
+                    with ui.HStack():
+                        configurator_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Configurator", name="label")
+                        
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})  
+                    
+                    with ui.HStack():
+                        site_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Site", name="label")
+                        
+                    configurator_checkbox.model.add_value_changed_fn(lambda a, b=abc_checkbox, c=site_checkbox: like_radio(a, b, c))
+                    abc_checkbox.model.add_value_changed_fn(lambda a, b=configurator_checkbox, c=site_checkbox: like_radio(a, b, c))
+                    site_checkbox.model.add_value_changed_fn(lambda a, b=configurator_checkbox, c=abc_checkbox: like_radio(a, b, c))
+                    
+                    abc_checkbox.model.set_value(True)
+                    
+                def on_import_click():
+                    if abc_checkbox.model.get_value_as_bool():
+                        print("Import: ABC selezionato")
+                        template_tools._import_camera(self._stage, "Brand")
+                        
+                    elif configurator_checkbox.model.get_value_as_bool():
+                        print("Import: Configurator selezionato")
+                        template_tools._import_lights(self._stage)
+                        
+                    elif site_checkbox.model.get_value_as_bool():
+                        print("Import: Site selezionato")
+                        template_tools._import_limbo(self._stage)
+                    else:
+                        print("Import: nessuna opzione selezionata")
+                        
+                self.import_template_btn = ui.Button("Import Template", name="import_template", clicked_fn=on_import_click)
+                
+    def _dropdown_custom_model_UI(self):
+        
+        """
+        Create the custom model import interface.
+        
+        Builds a collapsible frame containing:
+        - Model name input field
+        - "Select Model" button to query PLM data
+        - Table headers for SKU display
+        - Scrollable area for SKU selection checkboxes
+        - "Import selected SKUs" button for batch processing
+        
+        This interface allows users to manually specify a model name
+        and then select specific SKUs for import rather than using
+        the dropdown-based selection method.
+        """
+        
+        
+        # Custom Collapsable Frame
+        with ui.CollapsableFrame(title="Custom Model Import ", style=CollapsableFrame_style, collapsed=True):
+            with ui.VStack(height=0, spacing=15, name="frame_v_stack"):
+                # Model input and select button
+                with ui.HStack(spacing=10, alignment=ui.Alignment.V_CENTER):
+                    ui.Label("Model", name="label", width=LABEL_PADDING)
+                    self.model_field = ui.StringField(self.model_model, name="model", height=10, style={"margin":3})
+                    self.import_custom_button = ui.Button("Select Model", clicked_fn=self._import_sel_skus, name="select_model")
+                    
+                with ui.ZStack():
+                    ui.Rectangle(style={"background_color": cl(0.25), 
+                                        "padding": 8, 
+                                        "border_radius": 2, 
+                                        "margin": -4} )  
+                    
+                    with ui.HStack(height=0, spacing=10, alignment=ui.Alignment.V_CENTER):
+                        ui.Label("Rel Filter", name="label", width=LABEL_PADDING)
+                        self.season_field = ui.StringField(self.int_filter_model, name="filter", style={"margin":3})
+                        self.filter_button = ui.Button("Filter", clicked_fn=self._filter_skus)
+                        self.clear_filter_button = ui.Button("Clear Filter", clicked_fn=self._clear_filter, name="clear_filter", style= {})
+                        
+                """    
+                # Aggiungi anche un pulsante per rimuovere il filtro
+                with ui.HStack():
+                    ui.Label("", width=LABEL_PADDING)  # Spacer per allineamento
+                    ui.Spacer()  # Per allineare a sinistra
+                """
+                
+                ui.Spacer(height=1)
+                
+                # Main container for the table
+                with ui.VStack(spacing=0):
+                    # Table headers
+                    with ui.HStack():
+                        ui.Label("NAME", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
+                        ui.Label("SKU", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
+                        ui.Label("RELEASE", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
+                        ui.Label("IMPORT", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
+                    
+                    ui.Spacer(height=4)
+                    
+                    # ScrollingFrame with internal Frame for content
+                    self.scroll_frame = ui.ScrollingFrame(
+                        height=200,
+                        horizontal_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_OFF,
+                        vertical_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_ON,
+                    )
+                    
+                    # Set build function for dynamic content
+                    self.scroll_frame.set_build_fn(self._build_scrolling_content)
+                    
+                    ui.Spacer(height=16)
+                    with ui.HStack():
+                        # Import button for selected SKUs
+                        self.create_hierarchy_button = ui.Button("Import selected SKUs", 
+                                                                height=10, 
+                                                                clicked_fn=self._create_hierarchy_and_import_payload,
+                                                                name="import_selected")
+                        
+                        self.clear_button = ui.Button("Clear", 
+                                                                height=10, 
+                                                                clicked_fn=self._clear_all,
+                                                                name = "clear_scrolling")
+                    
+                    ui.Spacer(height=8)
+                
+    def _dropdown_import_custom_template_scene_UI(self):
+        
+        with ui.CollapsableFrame(title="Custom Import Template Scene ", style=CollapsableFrame_style):
+            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                    
+                # Brand selection dropdown
+                with ui.HStack(spacing=10):
+                    ui.Label("Camera Selection", name="label", width=LABEL_PADDING)
+                    self.brand_camera_combo = ui.ComboBox(1, *combo_elements, height=10, name="camera_brand").model
+                    self._create_control_state()
+                    
+                ui.Spacer(height=2)    
+                
+                with ui.HStack(spacing=12):
+                    with ui.HStack():
+                        camera_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Camera", name="label")
+                    
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})    
+                    
+                    with ui.HStack():
+                        lights_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Lights", name="label")
+                    
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})    
+                    
+                    with ui.HStack():
+                        limbo_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Limbo", name="label")
+                    
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})    
+                    
+                    with ui.HStack():
+                        settings_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Settings", name="label")
+                        
+                    
+                    
+                    def import_camera(stage):
+                        print("--- Import: Camera ---")
+                        brand_camera_model = self.brand_camera_combo.get_item_value_model()
+                        template_tools._import_camera(stage, brand_camera_model, combo_elements, templates_dir)
+                        
+                    def import_lights(stage):
+                        print("--- Import: Lights ---")
+                        template_tools._import_lights(stage, templates_dir)
+                        
+                    def import_limbo(stage):
+                        print("--- Import: Limbo ---")
+                        template_tools._import_limbo(stage, templates_dir)
+                        
+                    def import_settings(stage):
+                        print("--- Import: Settings ---")
+                        template_tools._import_settings(stage, templates_dir)
+                        
+                    def on_import_click():
+                        
+                        stage = omni.usd.get_context().get_stage()
+                        
+                        if camera_checkbox.model.get_value_as_bool():
+                            import_camera(stage)
+                            
+                        if lights_checkbox.model.get_value_as_bool():
+                            import_lights(stage)
+                            
+                        if limbo_checkbox.model.get_value_as_bool():
+                            import_limbo(stage)
+                            
+                        if settings_checkbox.model.get_value_as_bool():
+                            template_tools.import_settings(stage)
+                            print("Settings import is currently disabled")
+                            
+                        if not any([
+                            camera_checkbox.model.get_value_as_bool(),
+                            lights_checkbox.model.get_value_as_bool(),
+                            limbo_checkbox.model.get_value_as_bool(),
+                            settings_checkbox.model.get_value_as_bool()
+                        ]):
+                            post_notification(
+                                "No checkbox selected!",
+                                duration=5,
+                                status=NotificationStatus.WARNING
+                            )
+                            print("Import completed")
+                            
+                        #Uncheck values
+                            
+                        camera_checkbox.model.set_value(False),
+                        lights_checkbox.model.set_value(False),
+                        limbo_checkbox.model.set_value(False),
+                        settings_checkbox.model.set_value(False)
+                            
+                    def on_import_click_all():
+                        
+                        stage = omni.usd.get_context().get_stage()
+                        
+                        print("--- Import: All ---")
+                        
+                        import_camera(stage)
+                        import_lights(stage)
+                        import_limbo(stage)
+                        #import_settings()
+                        
+                        camera_checkbox.model.set_value(False),
+                        lights_checkbox.model.set_value(False),
+                        limbo_checkbox.model.set_value(False),
+                        settings_checkbox.model.set_value(False)
+                        
+                        post_notification(
+                            "Import completed!",
+                            duration=5,
+                            status=NotificationStatus.INFO
+                        )
+                        print("Import completed")
+                    
+                # Import button
+                self.import_temp_item_btn = ui.Button("Import Selected", clicked_fn=on_import_click, name="import_collection")
+                
+                ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                
+                self.import_all_temp_item_btn = ui.Button("Import All", clicked_fn=on_import_click_all, name="import_collection")
+                
+    def _dropdown_all_collection_UI(self):
         """
         Create the main dropdown selection frame.
         
@@ -199,34 +481,82 @@ class TheliosExtension(omni.ext.IExt):
         This frame serves as the primary input interface for filtering
         and selecting product data from the PLM system.
         """
-        with ui.Frame():
-            with ui.ZStack():
-                ui.Rectangle(name="frame_background")
-                with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
-                    ui.Spacer(height=5)
+        with ui.CollapsableFrame(title="All Collection Import ", style=CollapsableFrame_style, collapsed=True):
+            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                
+                # Release input field
+                with ui.HStack(spacing=10):
+                    ui.Label("Release", name="label", width=LABEL_PADDING)
+                    self.release_field = ui.IntField(self.int_model, height=10, name="release")
+                    self._create_control_state()
                     
-                    # Release input field
-                    with ui.HStack(spacing=10):
-                        ui.Label("Release", name="label", width=LABEL_PADDING)
-                        self.release_field = ui.IntField(self.int_model, height=10, name="release")
-                        self._create_control_state()
-                        
-                    # Brand selection dropdown
-                    with ui.HStack(spacing=10):
-                        ui.Label("Brand", name="label", width=LABEL_PADDING)
-                        self.brand_combo = ui.ComboBox(1, *combo_elements, height=10, name="brand_choices").model
-                        self._create_control_state()
-                        
-                    # Type/Genre selection dropdown
-                    with ui.HStack(spacing=10):
-                        ui.Label("Type", name="label", width=LABEL_PADDING)
-                        self.type_combo = ui.ComboBox(0, *genres, height=10, name="type_choices").model
-                        self._create_control_state()
-                        
-                    # Import button
-                    self.import_btn = ui.Button("Import", clicked_fn=self._get_plm_data)
-                    ui.Spacer(height=0)
+                # Brand selection dropdown
+                with ui.HStack(spacing=10):
+                    ui.Label("Brand", name="label", width=LABEL_PADDING)
+                    self.brand_combo = ui.ComboBox(1, *combo_elements, height=10, name="brand_choices").model
+                    self._create_control_state()
                     
+                # Type/Genre selection dropdown
+                with ui.HStack(spacing=10):
+                    ui.Label("Type", name="label", width=LABEL_PADDING)
+                    self.type_combo = ui.ComboBox(0, *genres, height=10, name="type_choices").model
+                    self._create_control_state()
+                    
+                # Import button
+                self.import_btn = ui.Button("Import", clicked_fn=self._get_plm_data, name="import_collection")
+                ui.Spacer(height=0)
+                
+    def _dropdown_render_UI(self):
+        
+        def on_folder_selected(dialog, filename, dirname):
+            # Solo cartella selezionata
+            dialog.hide()
+            export_path_field.model.set_value(dirname)
+        
+        def on_folder_icon_click():
+            # Apertura FilePicker solo per cartelle
+            dialog = FilePickerDialog(
+                "Seleziona cartella di export",
+                apply_button_label="Seleziona",
+                click_apply_handler=lambda filename, dirname: on_folder_selected(dialog, filename, dirname),
+                select_folder=True  # Opzione solo cartella!
+            )
+            dialog.show()
+        
+        with ui.CollapsableFrame(title="Render", style=CollapsableFrame_style, collapsed=False):
+            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                
+                # Release input field
+                with ui.HStack(spacing=10):
+                    ui.Label("Fr. Number", name="label", width=LABEL_PADDING)
+                    self.frame_field = ui.IntField(self.frame_model, height=10, name="frames")
+                    self._create_control_state()
+                    
+                # Brand selection dropdown
+                with ui.HStack(spacing=10):
+                    
+                    ui.Label("Exp. Path", name="label", width=LABEL_PADDING)
+                    
+                    export_path_field = ui.StringField(self.type_string_model, name="export_path", height=10)
+                    ui.Button(name="Scegli cartella", 
+                            image_url="resources/icons/folder.png", 
+                            width=28,
+                            height=28,
+                            clicked_fn=on_folder_icon_click)
+                    self._create_control_state()
+                    
+                self.render_btn = ui.Button("Render Sequence", clicked_fn=self._render_sequence, name="render_sequence")
+                
+                """    
+                # Type/Genre selection dropdown
+                with ui.HStack(spacing=10):
+                    ui.Label("Type", name="label", width=LABEL_PADDING)
+                    self.type_combo = ui.ComboBox(0, *genres, height=10, name="type_choices").model
+                    self._create_control_state()
+                    
+                # Import button
+                ui.Spacer(height=0)
+                """
     def _create_control_state(self, state=0):
         """
         Create visual control state indicators.
@@ -384,9 +714,10 @@ class TheliosExtension(omni.ext.IExt):
     
     def _build_scrolling_content(self):
         """
-        Build the scrollable content for SKU selection table.
+        Build the scrollable content for SKU selection table with optional filtering.
         
         Creates a dynamic table showing available SKUs for the selected model.
+        Can filter results based on release value if filter is applied.
         Each row contains:
         - Style name (in green highlight color)
         - SKU identifier
@@ -398,6 +729,14 @@ class TheliosExtension(omni.ext.IExt):
         """
         self.checkbox_data = []  # Reset data storage
         sku_rel_list = self._get_sku_model_plm()
+        
+        # Apply filter if filter value is set
+        if hasattr(self, 'apply_filter') and self.apply_filter:
+            filter_value = self.int_filter_model.get_value_as_string().strip()
+            if filter_value:
+                # Filter tuples where the second element (release) contains the filter value
+                sku_rel_list = [item for item in sku_rel_list if filter_value in str(item[1])]
+                print(f"Filtered results for release containing '{filter_value}': {len(sku_rel_list)} items")
         
         if self.show_labels:
             with ui.VStack(spacing=0):
@@ -442,6 +781,48 @@ class TheliosExtension(omni.ext.IExt):
         """
         self.show_labels = True
         self.scroll_frame.rebuild()  # Update ScrollingFrame content
+        
+    def _render_sequence(self):
+        
+        export_path = self.type_string_model.get_value_as_string()
+        num_frames = self.frame_model.get_value_as_int()
+        
+        print(f"Export Path: {export_path}")
+        print(f"Number of Frames: {num_frames}")
+        
+        #render_tools.capture_sequence_movie(export_path, "frame", num_frames )
+        print("Render sequence function called")
+    
+    def _filter_skus(self):
+        """
+        Apply filter to SKU results based on release value.
+        
+        Sets the filter flag and triggers a rebuild of the scrolling frame
+        to display only SKUs that match the filter criteria.
+        This method is called when the "Filter Models" button is clicked.
+        """
+        filter_value = self.int_filter_model.get_value_as_string().strip()
+        
+        if not filter_value:
+            print("No filter value specified")
+            return
+            
+        print(f"Applying filter for release: {filter_value}")
+        self.apply_filter = True
+        self.show_labels = True
+        self.scroll_frame.rebuild()  # Update ScrollingFrame content with filter
+        
+    def _clear_filter(self):
+        """
+        Remove filter and show all SKU results.
+        
+        Resets the filter flag and triggers a rebuild of the scrolling frame
+        to display all available SKUs without filtering.
+        """
+        self.apply_filter = False
+        print("Filter cleared - showing all results")
+        if self.show_labels:
+            self.scroll_frame.rebuild()  # Update ScrollingFrame content without filter
         
     def _create_hierarchy_and_import_payload(self):
         """
@@ -518,61 +899,13 @@ class TheliosExtension(omni.ext.IExt):
         print(f"Selected items: {selected_items}")
         return selected_items
         
-    def _import_custom_model(self):
-        """
-        Create the custom model import interface.
-        
-        Builds a collapsible frame containing:
-        - Model name input field
-        - "Select Model" button to query PLM data
-        - Table headers for SKU display
-        - Scrollable area for SKU selection checkboxes
-        - "Import selected SKUs" button for batch processing
-        
-        This interface allows users to manually specify a model name
-        and then select specific SKUs for import rather than using
-        the dropdown-based selection method.
-        """
-        # Custom Collapsable Frame
-        with ui.CollapsableFrame(title="Custom Model Import ", style=CollapsableFrame_style):
-            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
-                # Model input and select button
-                with ui.HStack(spacing=10):
-                    ui.Label("Model", name="label", width=LABEL_PADDING)
-                    self.model_field = ui.StringField(self.model_model, height=10, name="model")
-                    self.import_custom_button = ui.Button("Select Model", height=10, clicked_fn=self._import_sel_skus)
-                
-                ui.Spacer(height=1)
-                
-                # Main container for the table
-                with ui.VStack(spacing=0):
-                    # Table headers
-                    with ui.HStack():
-                        ui.Label("NAME", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
-                        ui.Label("SKU", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
-                        ui.Label("RELEASE", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
-                        ui.Label("IMPORT", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
-                    
-                    ui.Spacer(height=4)
-                    
-                    # ScrollingFrame with internal Frame for content
-                    self.scroll_frame = ui.ScrollingFrame(
-                        height=200,
-                        horizontal_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_OFF,
-                        vertical_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_ON,
-                    )
-                    
-                    # Set build function for dynamic content
-                    self.scroll_frame.set_build_fn(self._build_scrolling_content)
-                    
-                    ui.Spacer(height=16)
-                    
-                    # Import button for selected SKUs
-                    self.create_hierarchy_button = ui.Button("Import selected SKUs", 
-                                                            height=10, 
-                                                            clicked_fn=self._create_hierarchy_and_import_payload)
-                    
-                    ui.Spacer(height=8)
+    def _clear_all(self):
+        """Clear both the scroll frame and any applied filters."""
+        self.apply_filter = False
+        self.show_labels = False
+        self.checkbox_data = []
+        self.scroll_frame.clear()
+        print("Cleared all data and filters")
             
     def on_startup(self, _ext_id: str) -> ui.Window:
         """
@@ -616,11 +949,18 @@ class TheliosExtension(omni.ext.IExt):
                 with self._window_Frame:
                     with ui.VStack(height=0, name="main_v_stack", spacing=8):
                         
-                        # Main dropdown selection frame
-                        self._build_dropdown_frame_all_collection()
+                        self._dropdown_import_template_UI()
+                        
+                        # Template scene import frame
+                        self._dropdown_import_custom_template_scene_UI()
                         
                         # SKU-Release table creation
-                        self._import_custom_model()
+                        self._dropdown_custom_model_UI()
+                        
+                        # Main dropdown selection frame
+                        self._dropdown_all_collection_UI()
+                        
+                        self._dropdown_render_UI()
                         
                         # Optional USD selection folder frame
                         with ui.CollapsableFrame(title="Optional USD Selection Folder ", 

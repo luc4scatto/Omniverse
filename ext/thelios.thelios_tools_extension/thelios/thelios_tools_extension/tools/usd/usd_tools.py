@@ -100,6 +100,19 @@ def create_hierarchy_structure(stage: Usd.Stage, model_name: str, sku_name: str,
     glass_xform_path = f"{models_path}/glass_Xform"
     glass_xform = get_or_create_xform(stage, glass_xform_path)
     
+    # Apply 45° rotation animation on Y axis to glass_Xform ---------
+    
+    prim = stage.GetPrimAtPath(glass_xform_path)
+    xformable = UsdGeom.Xformable(prim)
+    rotY = xformable.GetRotateYOp()
+    if not rotY:
+        rotY = xformable.AddRotateYOp(UsdGeom.XformOp.PrecisionFloat)
+        
+    for i in range(1, 9):  # 8 frame
+        angle = -45.0 * i
+        rotY.Set(angle, Usd.TimeCode(i))    
+    # ---------------------------------------------------------------        
+    
     # 3. Create model_name_Xform (Xform) under glass_Xform
     model_xform_path = f"{glass_xform_path}/{model_name}_Xform"
     model_xform = get_or_create_xform(stage, model_xform_path)
@@ -111,7 +124,6 @@ def create_hierarchy_structure(stage: Usd.Stage, model_name: str, sku_name: str,
     # 5. Create SKU scope with underscore to avoid path errors
     sku_scope_path = f"{release_scope_path}/{model_name}_{str(sku_name)}"
     sku_scope = get_or_create_scope(stage, sku_scope_path)
-
 
 def check_usd_file_exists(file_path: str) -> bool:
     """
@@ -148,7 +160,6 @@ def check_usd_file_exists(file_path: str) -> bool:
     else:
         # For local paths, use os.path.exists
         return os.path.exists(file_path) and os.path.isfile(file_path)
-
 
 def assign_payload(target_path: str, payload_asset_path: str) -> Usd.Prim:
     """
@@ -199,7 +210,6 @@ def assign_payload(target_path: str, payload_asset_path: str) -> Usd.Prim:
     
     return target_prim
 
-
 def _get_or_create_prim(stage: Usd.Stage, path: str) -> Usd.Prim:
     """
     Find an existing prim or create the hierarchy if necessary.
@@ -245,7 +255,6 @@ def _get_or_create_prim(stage: Usd.Stage, path: str) -> Usd.Prim:
                 UsdGeom.Scope.Define(stage, sdf_path)
     
     return stage.GetPrimAtPath(Sdf.Path(path))
-
 
 def import_payload(payload_usd_path: str, target_path: str) -> None:
     """
