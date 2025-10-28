@@ -1,11 +1,16 @@
 import omni.ui as ui
 from omni.ui import color as cl
 import omni.usd
+from omni.kit.notification_manager import post_notification, NotificationStatus
+from omni.kit.window.filepicker import FilePickerDialog
 
-from .tools.queries import plm_query, brand_query
 from . import constants
 from .models import TheliosWindowModel
+
+from .tools.queries import plm_query, brand_query
 from .tools.usd import usd_tools
+from .tools.templates import template_tools
+from .tools.render import render_settings, render_launch
 
 class TheliosLogic:
     def __init__(self, model: TheliosWindowModel):
@@ -18,6 +23,57 @@ class TheliosLogic:
         self.brand_combo = None
         self.type_combo = None
         self.release_field = None
+        
+        self._stage = omni.usd.get_context().get_stage()
+        
+        self.templates_dir = constants.TEMPLATES_PATH
+            
+    def like_radio(self, model, first):
+            """Turn on the model and turn off two checkboxes"""
+            if model.get_value_as_bool():
+                model.set_value(True)
+                first.model.set_value(False)
+                
+    def on_checkbox_changed(self,checkbox_model, slider):
+            slider.enabled = checkbox_model.get_value_as_bool()
+            # Cambia lo stile in base allo stato
+            if slider.enabled:
+                slider.style = constants.SLIDER_ENABLED_STYLE
+            else:
+                slider.style = constants.SLIDER_DISABLED_STYLE
+                
+    def _render_sequence(self):
+        
+        export_path = self.model.type_string_model.get_value_as_string()
+        
+        start_frame = self.model.startfr_model.get_value_as_int()
+        end_frame = self.model.endfr_model.get_value_as_int()
+        
+        single_frame = self.model.singlefr_model.get_value_as_int()
+        
+        resolution_model = self.model.resolution_combo.get_item_value_model()
+        
+        res_index = resolution_model.as_int
+        res_value = constants.RESOLUTIONS[res_index]
+        
+        print(f"Export Path: {export_path}")
+        print(f"Resolution: {res_value}")
+        print(f"Start Frame: {start_frame}")        
+        print(f"End Frame: {end_frame}")
+        print(f"Single Frame: {single_frame}")
+        
+        render_launch.render_launch_png(res_value,
+                                        export_path,
+                                        constants.SING_SEQ,
+                                        start_frame, 
+                                        end_frame, 
+                                        single_frame)
+        
+        
+        
+    def get_combo_elements(self):
+        combo_elements = brand_query.pop_combo_brands(constants.DB_KEY)
+        return combo_elements
         
     def create_scrolling_frame(self):
         self.scroll_frame = ui.ScrollingFrame(
@@ -78,17 +134,7 @@ class TheliosLogic:
             # Import the payload
             usd_tools.import_payload(payload_file_path, sku_prim_path)
             
-    def _import_sel_skus(self):
-            """
-            Trigger the display of SKU selection interface.
-            
-            Sets the flag to show the SKU table labels and triggers a rebuild
-            of the scrolling frame to display the available SKUs for selection.
-            This method is called when the "Select Model" button is clicked.
-            """
-            #self.scroll_frame = self.create_scrolling_frame()
-            self.show_labels = True
-            self.scroll_frame.rebuild()  # Update ScrollingFrame content
+    # PLM query functions -------------------------------------------------------------------------------
         
     def _get_sku_model_plm(self):
             """
@@ -104,6 +150,79 @@ class TheliosLogic:
             model_value = self.model.model_model.get_value_as_string()
             model_sku_res = plm_query.get_sku_model_plm(constants.DB_KEY, str(model_value))
             return model_sku_res
+        
+    def _get_plm_data(self) -> list:
+        """
+        Retrieve product data from PLM system based on current selections.
+        
+        Extracts values from the UI dropdowns (brand, type, release) and
+        queries the PLM database for matching products. Handles special
+        cases for "All Woman" and "All Man" types by combining multiple
+        queries for optical and sun categories.
+        
+        Returns:
+            list: Sorted list of tuples containing product data (SKU, Release, etc.)
+                    Returns combined results for "All" categories, single query results otherwise
+        Example:
+            >>> data = self._get_plm_data()
+            >>> # Returns: [('SKU001', 'v1.0', 'Style1'), ('SKU002', 'v1.1', 'Style2')]
+        """
+        combo_elements = self.get_combo_elements()
+        
+        # Extract current selections from UI
+        brand_model = self.brand_combo.get_item_value_model()
+        brand_index = brand_model.as_int
+        brand_value = combo_elements[brand_index]
+        
+        type_model = self.type_combo.get_item_value_model()
+        type_index = type_model.as_int
+        type_value = constants.GENRES[type_index]
+        
+        season_value = self.model.int_model.get_value_as_int()
+        
+        print(f"+++ Season: {season_value}")
+        print(f"--- Brand: {brand_value}")
+        print(f"*** Type: {type_value}")
+        
+        # Handle combined queries for "All Woman" category
+        if type_value == "All Woman":
+            res_query_optical_woman = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Optical - Woman")
+            res_query_sun_woman = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Sun - Woman")
+            
+            res_query_sun = list(set(res_query_optical_woman).union(set(res_query_sun_woman)))
+            sorted_list = sorted(res_query_sun, key=lambda x: x[0])
+            print(sorted_list)
+            return sorted_list
+            
+        # Handle combined queries for "All Man" category
+        elif type_value == "All Man":
+            res_query_optical_man = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Optical - Man")
+            res_query_sun_man = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Sun - Man")
+            
+            result_query_man = list(set(res_query_optical_man).union(set(res_query_sun_man)))
+            sorted_list = sorted(result_query_man, key=lambda x: x[0])
+            print(sorted_list)
+            return sorted_list
+            
+        # Handle single category queries
+        else:
+            res_query = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),str(type_value))
+            print(res_query)
+            return res_query
+        
+    # ---------------------------------------------------------------------------------------------------
+
+    def _import_sel_skus(self):
+            """
+            Trigger the display of SKU selection interface.
+            
+            Sets the flag to show the SKU table labels and triggers a rebuild
+            of the scrolling frame to display the available SKUs for selection.
+            This method is called when the "Select Model" button is clicked.
+            """
+            #self.scroll_frame = self.create_scrolling_frame()
+            self.show_labels = True
+            self.scroll_frame.rebuild()  # Update ScrollingFrame content
         
     def _get_selected_items(self):
         """
@@ -128,14 +247,6 @@ class TheliosLogic:
         
         print(f"Selected items: {selected_items}")
         return selected_items
-        
-    def _clear_all(self):
-        """Clear both the scroll frame and any applied filters."""
-        self.apply_filter = False
-        self.show_labels = False
-        self.checkbox_data = []
-        self.scroll_frame.clear()
-        print("Cleared all data and filters")
         
     def _build_scrolling_content(self):
         """
@@ -196,65 +307,7 @@ class TheliosLogic:
                             'release': item[1]
                         })
                         
-    def _get_plm_data(self) -> list:
-        """
-        Retrieve product data from PLM system based on current selections.
-        
-        Extracts values from the UI dropdowns (brand, type, release) and
-        queries the PLM database for matching products. Handles special
-        cases for "All Woman" and "All Man" types by combining multiple
-        queries for optical and sun categories.
-        
-        Returns:
-            list: Sorted list of tuples containing product data (SKU, Release, etc.)
-                    Returns combined results for "All" categories, single query results otherwise
-
-        Example:
-            >>> data = self._get_plm_data()
-            >>> # Returns: [('SKU001', 'v1.0', 'Style1'), ('SKU002', 'v1.1', 'Style2')]
-        """
-        combo_elements = brand_query.get_brand_list(constants.DB_KEY)
-        
-        # Extract current selections from UI
-        brand_model = self.brand_combo.get_item_value_model()
-        brand_index = brand_model.as_int
-        brand_value = combo_elements[brand_index]
-        
-        type_model = self.type_combo.get_item_value_model()
-        type_index = type_model.as_int
-        type_value = constants.GENRES[type_index]
-        
-        season_value = self.model.int_model.get_value_as_int()
-        
-        print(f"+++ Season: {season_value}")
-        print(f"--- Brand: {brand_value}")
-        print(f"*** Type: {type_value}")
-        
-        # Handle combined queries for "All Woman" category
-        if type_value == "All Woman":
-            res_query_optical_woman = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Optical - Woman")
-            res_query_sun_woman = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Sun - Woman")
-            
-            res_query_sun = list(set(res_query_optical_woman).union(set(res_query_sun_woman)))
-            sorted_list = sorted(res_query_sun, key=lambda x: x[0])
-            print(sorted_list)
-            return sorted_list
-            
-        # Handle combined queries for "All Man" category
-        elif type_value == "All Man":
-            res_query_optical_man = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Optical - Man")
-            res_query_sun_man = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Sun - Man")
-            
-            result_query_man = list(set(res_query_optical_man).union(set(res_query_sun_man)))
-            sorted_list = sorted(result_query_man, key=lambda x: x[0])
-            print(sorted_list)
-            return sorted_list
-            
-        # Handle single category queries
-        else:
-            res_query = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),str(type_value))
-            print(res_query)
-            return res_query
+    # Filtering an cleaning functions -------------------------------------------------------------------
         
     def _filter_skus(self):
         """
@@ -294,3 +347,101 @@ class TheliosLogic:
         self.checkbox_data = []
         self.scroll_frame.clear()
         print("Cleared all data and filters")
+        
+    def _clear_all(self):
+        """Clear both the scroll frame and any applied filters."""
+        self.apply_filter = False
+        self.show_labels = False
+        self.checkbox_data = []
+        self.scroll_frame.clear()
+        print("Cleared all data and filters")
+        
+    # ---------------------------------------------------------------------------------------------------
+    
+    # Single template import functions ------------------------------------------------------------------
+        
+    def import_camera(self, brand_camera_combo):
+        print("--- Import: Camera ---")
+        self.combo_elements = self.get_combo_elements()
+        self.brand_camera_model = brand_camera_combo.get_item_value_model()
+        template_tools._import_camera(  self._stage, 
+                                        self.brand_camera_model, 
+                                        self.combo_elements, 
+                                        self.templates_dir)
+        
+    def import_lights(self):
+        print("--- Import: Lights ---")
+        template_tools._import_lights(self._stage, self.templates_dir)
+        
+    def import_limbo(self):
+        print("--- Import: Limbo ---")
+        template_tools._import_limbo(self._stage, self.templates_dir)
+        
+    def import_settings(self):
+        print("--- Import: Settings ---")
+        render_settings.import_render_settings()
+        
+    def on_import_click(self, 
+                        camera_checkbox, 
+                        lights_checkbox, 
+                        limbo_checkbox, 
+                        settings_checkbox,
+                        brand_camera_combo):
+                
+        if camera_checkbox.model.get_value_as_bool():
+            self.import_camera(brand_camera_combo)
+            
+        if lights_checkbox.model.get_value_as_bool():
+            self.import_lights()
+            
+        if limbo_checkbox.model.get_value_as_bool():
+            self.import_limbo()
+            
+        if settings_checkbox.model.get_value_as_bool():
+            self.import_settings()
+            
+        if not any([
+            camera_checkbox.model.get_value_as_bool(),
+            lights_checkbox.model.get_value_as_bool(),
+            limbo_checkbox.model.get_value_as_bool(),
+            settings_checkbox.model.get_value_as_bool()
+        ]):
+            post_notification(
+                "No checkbox selected!",
+                duration=5,
+                status=NotificationStatus.WARNING
+            )
+            print("Import completed")
+            
+        #Uncheck values
+            
+        camera_checkbox.model.set_value(False),
+        lights_checkbox.model.set_value(False),
+        limbo_checkbox.model.set_value(False),
+        settings_checkbox.model.set_value(False)
+            
+    def on_import_click_all(self,
+                            camera_checkbox, 
+                            lights_checkbox, 
+                            limbo_checkbox, 
+                            settings_checkbox,
+                            brand_camera_combo):
+                
+        print("--- Import: All ---")
+        
+        self.import_camera(brand_camera_combo)
+        self.import_lights()
+        self.import_limbo()
+        self.import_settings()
+        
+        camera_checkbox.model.set_value(False),
+        lights_checkbox.model.set_value(False),
+        limbo_checkbox.model.set_value(False),
+        settings_checkbox.model.set_value(False)
+        
+        post_notification(
+            "Import completed!",
+            duration=5,
+            status=NotificationStatus.INFO
+        )
+        print("Import completed")

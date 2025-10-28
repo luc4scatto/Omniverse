@@ -4,14 +4,13 @@ from omni.ui import scene
 import carb
 
 #from .utils import load_config
-from .ui import style_widgets
-from .ui_modules_import import ImportTemplateUI, CustomModelImportPanel
+from .tools.style import style_widgets
+from .ui_modules_import import ImportTemplatePanel, CustomModelImportPanel, CustomTemplateImportPanel, ImportAllCollectionPanel, RenderSettingsPanel
 from .models import TheliosWindowModel
 from .logic import TheliosLogic
 
 DARK_WINDOW_STYLE = style_widgets.window_style()
 CollapsableFrame_style = style_widgets.collapbsable_style()
-
 
 class TheliosToolsWindow:
 
@@ -26,29 +25,12 @@ class TheliosToolsWindow:
         
         self._init()
         
-        
-        
-        # Create main window
-        
-        
-        """
-        self._stage = omni.usd.get_context().get_stage()
-        self.brand_combo = None
-        self.type_combo = None
-        self.release_field = None
-        self.resolution_combo = None
-        
-        """
         #self._timeline = omni.timeline.get_timeline_interface()
         #self._current_fps = self._timeline.get_time_codes_per_seconds()
-
+        
     def _init(self):
         
         self._editor_window = None
-        """
-        self._window_Frame = None
-        self._window_Frame.set_style(DARK_WINDOW_STYLE)
-        """
         self.width = 450
         self.height = 600
         
@@ -67,13 +49,24 @@ class TheliosToolsWindow:
                 with self._window_Frame:
                     with ui.VStack(height=0, name="main_v_stack", spacing=8):
                         
-                        #Import template panel
-                        self.import_template_panel = ImportTemplateUI()
+                        #Import template panel class
+                        self.import_template_panel = ImportTemplatePanel()
                         self.import_template_panel.build(CollapsableFrame_style)
                         
+                        #Import custom template panel class
+                        self.custom_template_import_panel = CustomTemplateImportPanel(self.model, self.logic)
+                        self.custom_template_import_panel.build(CollapsableFrame_style)
+                        
+                        #Import custom model panel class
                         self.custom_model_import_panel = CustomModelImportPanel(self.model, self.logic)
                         self.custom_model_import_panel.build(CollapsableFrame_style)
                         
+                        #Import all collection panel class
+                        self.import_all_collection_panel = ImportAllCollectionPanel(self.model, self.logic)
+                        self.import_all_collection_panel.build(CollapsableFrame_style)
                         
+                        #Import render settings panel class
+                        self.render_panel = RenderSettingsPanel(self.model, self.logic)
+                        self.render_panel.build(CollapsableFrame_style)
                         
         return self._editor_window

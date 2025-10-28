@@ -8,7 +8,7 @@ from omni.kit.viewport.utility import get_active_viewport_window
 
 from .window import TheliosToolsWindow
 from .models import TheliosWindowModel
-from .ui import style_widgets
+from .tools.style import style_widgets
 from .logic import TheliosLogic
 
 DARK_WINDOW_STYLE = style_widgets.window_style()

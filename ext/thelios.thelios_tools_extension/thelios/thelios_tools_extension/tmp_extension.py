@@ -150,6 +150,7 @@ class TheliosExtension(omni.ext.IExt):
         checkbox_data (list): Storage for checkbox states and associated SKU data
     """
     
+    
     def __init__(self):
         """
         Initialize the extension with default values and UI models.

@@ -1,19 +1,21 @@
 import omni.ui as ui
 from omni.ui import color as cl
 import omni.usd
+from omni.kit.notification_manager import post_notification, NotificationStatus
+from omni.kit.window.filepicker import FilePickerDialog
 
 from .tools.templates import template_tools
 from . import constants
 from .models import TheliosWindowModel
 from .logic import TheliosLogic
 
-class ImportTemplateUI:
+class ImportTemplatePanel:
     def __init__(self):
         self._stage = omni.usd.get_context().get_stage()
         self._template_tools = template_tools
         
     def build(self, style):
-        with ui.CollapsableFrame(title="Import Template Scene", style=style):
+        with ui.CollapsableFrame(title="Import Template Scene", style=style, collapsed=constants.IMPORT_TEMPLATE_UI_VISIBILITY):
             with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
                 
                 def like_radio(model, first, second):
@@ -58,13 +60,87 @@ class ImportTemplateUI:
                         
                 self.import_template_btn = ui.Button("Import Template", name="import_template", clicked_fn=on_import_click)
                 
+class CustomTemplateImportPanel:
+    def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
+        self.model = model
+        self.logic = logic
+        
+        self._stage = omni.usd.get_context().get_stage()
+        self._template_tools = template_tools
+        
+        self.combo_elements = self.logic.get_combo_elements()
+        
+    def build(self, style):
+        with ui.CollapsableFrame(title="Custom Import Template Scene ", style=style, collapsed=constants.CUSTOM_IMPORT_TEMPLATE_UI_VISIBILITY):
+            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                    
+                # Brand selection dropdown
+                with ui.HStack(spacing=10):
+                    ui.Label("Camera Selection", name="label", width=constants.LABEL_PADDING)
+                    self.brand_camera_combo = ui.ComboBox(1, *self.combo_elements, height=10, name="camera_brand").model
+                    #self._create_control_state()
+                    
+                ui.Spacer(height=2)    
+                
+                with ui.HStack(spacing=12):
+                    with ui.HStack():
+                        camera_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Camera", name="label")
+                    
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})    
+                    
+                    with ui.HStack():
+                        lights_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Lights", name="label")
+                    
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})    
+                    
+                    with ui.HStack():
+                        limbo_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Limbo", name="label")
+                    
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})    
+                    
+                    with ui.HStack():
+                        settings_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                        ui.Label("Settings", name="label")
+                        
+                    def on_import_click():
+                        self.logic.on_import_click(camera_checkbox, 
+                                                    lights_checkbox, 
+                                                    limbo_checkbox, 
+                                                    settings_checkbox, 
+                                                    self.brand_camera_combo)
+                        
+                    def on_import_click_all():  
+                        self.logic.on_import_click_all(camera_checkbox, 
+                                                        lights_checkbox, 
+                                                        limbo_checkbox, 
+                                                        settings_checkbox, 
+                                                        self.brand_camera_combo)
+                    
+                # Import button
+                self.import_temp_item_btn = ui.Button("Import Selected", clicked_fn=on_import_click, name="import_collection")
+                
+                ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                
+                self.import_all_temp_item_btn = ui.Button("Import All", clicked_fn=on_import_click_all, name="import_collection")
+                
 class CustomModelImportPanel:
     def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
         self.model = model
         self.logic = logic
         
     def build(self, style):
-        with ui.CollapsableFrame(title="Custom Model Import ", style=style, collapsed=True):
+        with ui.CollapsableFrame(title="Custom Model Import ", style=style, collapsed=constants.CUSTOM_MODEL_IMPORT_UI_VISIBILITY):
             with ui.VStack(height=0, spacing=15, name="frame_v_stack"):
                 # Model input and select button
                 with ui.HStack(spacing=10, alignment=ui.Alignment.V_CENTER):
@@ -129,3 +205,125 @@ class CustomModelImportPanel:
             """
             self.show_labels = True
             self.scroll_frame.rebuild()  # Update ScrollingFrame content
+            
+class ImportAllCollectionPanel:
+    def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
+        self.model = model
+        self.logic = logic
+        self.combo_elements = self.logic.get_combo_elements()
+        
+    def build(self, style):
+        with ui.CollapsableFrame(title="All Collection Import ", style=style, collapsed=constants.IMPORT_ALL_COLLECTION_UI_VISIBILITY):
+            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                
+                # Release input field
+                with ui.HStack(spacing=10):
+                    ui.Label("Release", name="label", width=constants.LABEL_PADDING)
+                    self.release_field = ui.IntField(self.model.release_model, height=10, name="release")
+                    #self._create_control_state()
+                    
+                # Brand selection dropdown
+                with ui.HStack(spacing=10):
+                    ui.Label("Brand", name="label", width=constants.LABEL_PADDING)
+                    self.brand_combo = ui.ComboBox(1, *self.combo_elements, height=10, name="brand_choices").model
+                    #self._create_control_state()
+                    
+                # Type/Genre selection dropdown
+                with ui.HStack(spacing=10):
+                    ui.Label("Type", name="label", width=constants.LABEL_PADDING)
+                    self.type_combo = ui.ComboBox(0, *constants.GENRES, height=10, name="type_choices").model
+                    #self._create_control_state()
+                    
+                # Import button
+                self.import_btn = ui.Button("Import", clicked_fn=self.logic._get_plm_data, name="import_collection")
+                ui.Spacer(height=0)
+                
+class RenderSettingsPanel:
+    def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
+        self.model = model
+        self.logic = logic
+        
+    def build(self, style):
+                
+        def on_folder_selected(dialog, filename, dirname):
+            # Solo cartella selezionata
+            dialog.hide()
+            export_path_field.model.set_value(dirname)
+        
+        def on_folder_icon_click():
+            # Apertura FilePicker solo per cartelle
+            dialog = FilePickerDialog(
+                "Seleziona cartella di export",
+                apply_button_label="Seleziona",
+                click_apply_handler=lambda filename, dirname: on_folder_selected(dialog, filename, dirname),
+                select_folder=True  # Opzione solo cartella!
+            )
+            dialog.show()
+        
+        with ui.CollapsableFrame(title="Render", style=style, collapsed=False):
+            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                
+                with ui.HStack(spacing=10):
+                    
+                    ui.Label("Exp. Path", name="label", width=constants.LABEL_PADDING)
+                    
+                    export_path_field = ui.StringField(self.model.type_string_model, name="export_path", height=10)
+                    ui.Button(name="Scegli cartella", 
+                            image_url="resources/icons/folder.png", 
+                            alignemnt=ui.Alignment.TOP,
+                            width=28,
+                            height=28,
+                            clicked_fn=on_folder_icon_click,
+                            style={"margin":3, "background_color": cl(0)})
+                    #self._create_control_state()
+                    
+                with ui.HStack(spacing=10):
+                    ui.Label("Resolution", name="label", width=constants.LABEL_PADDING)
+                    self.resolution_combo = ui.ComboBox(0, *constants.RESOLUTIONS, height=10, name="type_choices").model
+                    #self._create_control_state()
+                    
+                with ui.HStack():
+                    
+                    sequence_checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35),"margin":6},
+                                            model=self.model.sequence_model,
+                                            name="sequence_checkbox")
+                    ui.Label("Sequence", name="label")
+                    
+                    single_checkbox = ui.CheckBox(width=36, 
+                                            height=16, 
+                                            style={"color":cl("#77b901"), "background_color": cl(0.35),"margin":6},
+                                            name="single_checkbox")
+                    ui.Label("Single", name="label")
+                    
+                    sequence_checkbox.model.add_value_changed_fn(lambda a, b=single_checkbox: self.logic.like_radio(a, b))
+                    single_checkbox.model.add_value_changed_fn(lambda a, b=sequence_checkbox: self.logic.like_radio(a, b))
+                    
+                    
+                ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                
+                with ui.HStack(spacing=10):
+                    ui.Label("Start/End", name="label", width=constants.LABEL_PADDING)
+                    self.start_slider = ui.IntSlider(min=1, max=8, step=1)
+                    self.start_slider.model = self.model.startfr_model
+                    self.start_slider.enabled = True # parte disattivato
+                    
+                    self.end_slider = ui.IntSlider(min=1, max=8 ,step=1)
+                    self.end_slider.model = self.model.endfr_model
+                    self.end_slider.enabled = True # parte disattivato
+                    #self._create_control_state()
+                    
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0}) 
+                    
+                    ui.Label("Single Frame", name="label", width=constants.LABEL_PADDING)
+                    self.single_slider = ui.IntSlider(min=1, max=8 ,step=1, style=constants.SLIDER_DISABLED_STYLE)
+                    self.single_slider.model = self.model.singlefr_model
+                    self.single_slider.enabled = False # parte disattivato
+                    #self._create_control_state()
+                    
+                sequence_checkbox.model.add_value_changed_fn(lambda model: self.logic.on_checkbox_changed(model, self.start_slider))  
+                sequence_checkbox.model.add_value_changed_fn(lambda model: self.logic.on_checkbox_changed(model, self.end_slider))  
+                single_checkbox.model.add_value_changed_fn(lambda model: self.logic.on_checkbox_changed(model, self.single_slider))
+                    
+                self.render_btn = ui.Button("Render", clicked_fn=self.logic._render_sequence, name="render_sequence")
