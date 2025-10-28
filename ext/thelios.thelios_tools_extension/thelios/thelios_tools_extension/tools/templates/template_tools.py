@@ -1,4 +1,4 @@
-from  thelios.thelios_tools_extension.tools.usd import usd_tools
+from thelios.thelios_tools_extension.tools.usd import usd_tools
 from pxr import Usd, UsdGeom, Sdf
 import omni.kit.app
 import carb

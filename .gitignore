@@ -1,3 +1,9 @@
 ext/HDRLightStudio_Omniverse_2025.0902
 ext/maticodes.viewport.reticle
 PhysicalAI_Materials
+
+ext/thelios.thelios_tools_extension/thelios/thelios_tools_extension/__pycache__/
+ext/thelios.thelios_tools_extension/thelios/thelios_tools_extension/tools/render/__pycache__/
+ext/thelios.thelios_tools_extension/thelios/thelios_tools_extension/tools/style/__pycache__/
+ext/thelios.thelios_tools_extension/thelios/thelios_tools_extension/tools/templates/__pycache__/
+ext/thelios.thelios_tools_extension/thelios/thelios_tools_extension/ui/__pycache__/

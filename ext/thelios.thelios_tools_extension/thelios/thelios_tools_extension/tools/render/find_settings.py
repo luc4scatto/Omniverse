@@ -18,3 +18,4 @@ def print_render_settings(item, path=""):
             # Non effettua ricorsione per evitare errori di firma
 
 print_render_settings(dictionary)
+
