@@ -1,10 +1,9 @@
 import omni.ui as ui
 from omni.ui import color as cl
 import omni.usd
-from omni.kit.notification_manager import post_notification, NotificationStatus
 from omni.kit.window.filepicker import FilePickerDialog
 
-from .tools.templates import template_tools
+from .tools.utils import template_tools
 from . import constants
 from .models import TheliosWindowModel
 from .logic import TheliosLogic
@@ -259,6 +258,8 @@ class RenderSettingsPanel:
                 select_folder=True  # Opzione solo cartella!
             )
             dialog.show()
+            
+        
         
         with ui.CollapsableFrame(title="Render", style=style, collapsed=False):
             with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
@@ -294,6 +295,7 @@ class RenderSettingsPanel:
                     single_checkbox = ui.CheckBox(width=36, 
                                             height=16, 
                                             style={"color":cl("#77b901"), "background_color": cl(0.35),"margin":6},
+                                            model=self.model.single_model,
                                             name="single_checkbox")
                     ui.Label("Single", name="label")
                     
@@ -326,4 +328,15 @@ class RenderSettingsPanel:
                 sequence_checkbox.model.add_value_changed_fn(lambda model: self.logic.on_checkbox_changed(model, self.end_slider))  
                 single_checkbox.model.add_value_changed_fn(lambda model: self.logic.on_checkbox_changed(model, self.single_slider))
                     
-                self.render_btn = ui.Button("Render", clicked_fn=self.logic._render_sequence, name="render_sequence")
+                self.render_btn = ui.Button("Render", clicked_fn=lambda: self.logic._render_sequence(self.resolution_combo), name="render_sequence")
+                
+class ViewPanel:
+    def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
+        self.model = model
+        self.logic = logic
+        
+    def build(self, style):
+        with ui.CollapsableFrame(title="View", style=style, collapsed=False):
+            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                self.refresh_view_btn = ui.Button("Refresh Viewport", clicked_fn=self.logic._refresh_viewport, name="refresh_viewport")
+                

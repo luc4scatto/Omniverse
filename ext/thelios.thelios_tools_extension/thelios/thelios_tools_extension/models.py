@@ -14,7 +14,8 @@ class TheliosWindowModel:
         self.endfr_model = ui.SimpleIntModel(constants.END_FRAME)
         self.singlefr_model = ui.SimpleIntModel(constants.END_FRAME)
 
-        self.sequence_model = ui.SimpleBoolModel(constants.SING_SEQ)
+        self.sequence_model = ui.SimpleBoolModel(constants.SEQUENCE)
+        self.single_model = ui.SimpleBoolModel(constants.SINGLE_FRAME)
 
         #self._timeline = omni.timeline.get_timeline_interface()
         #self._current_fps = self._timeline.get_time_codes_per_seconds()

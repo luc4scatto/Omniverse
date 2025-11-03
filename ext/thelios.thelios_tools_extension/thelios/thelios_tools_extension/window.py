@@ -23,10 +23,9 @@ class TheliosToolsWindow:
         self.vp_win = vp_win
         self.ext_id = ext_id
         
-        self._init()
+        self._stage = omni.usd.get_context().get_stage()
         
-        #self._timeline = omni.timeline.get_timeline_interface()
-        #self._current_fps = self._timeline.get_time_codes_per_seconds()
+        self._init()
         
     def _init(self):
         

@@ -1,13 +1,19 @@
-from thelios.thelios_tools_extension.tools.usd import usd_tools
 from pxr import Usd, UsdGeom, Sdf
 import omni.kit.app
+import omni.usd
+
 import carb
 import os
 
-world_path = "/World"
-camera_target = f"/World/Setup/Cameras"
-light_target = f"/World/Setup/Lights"
-limbo_target = f"/World/Setup/Limbo"
+from ... import constants
+from ..utils import usd_tools
+
+world_path = constants.WORLD_PATH
+camera_target = constants.CAMERA_TARGET
+light_target = constants.LIGHT_TARGET
+limbo_target = constants.LIMBO_TARGET
+
+_stage = omni.usd.get_context().get_stage()
 
 def get_or_create_scope(stage: Usd.Stage, path: str) -> UsdGeom.Scope:
         """
@@ -20,11 +26,12 @@ def get_or_create_scope(stage: Usd.Stage, path: str) -> UsdGeom.Scope:
         Returns:
             UsdGeom.Scope: The existing or newly created Scope
         """
-        prim = stage.GetPrimAtPath(path)
+        _stage = omni.usd.get_context().get_stage()
+        prim = _stage.GetPrimAtPath(path)
         if prim.IsValid():
             return UsdGeom.Scope(prim)
         else:
-            return UsdGeom.Scope.Define(stage, path)
+            return UsdGeom.Scope.Define(_stage, path)
     
 def get_or_create_xform(stage: Usd.Stage, path: str) -> UsdGeom.Xform:
     """
@@ -37,11 +44,12 @@ def get_or_create_xform(stage: Usd.Stage, path: str) -> UsdGeom.Xform:
     Returns:
         UsdGeom.Xform: The existing or newly created Xform
     """
-    prim = stage.GetPrimAtPath(path)
+    _stage = omni.usd.get_context().get_stage()
+    prim = _stage.GetPrimAtPath(path)
     if prim.IsValid():
         return UsdGeom.Xform(prim)
     else:
-        return UsdGeom.Xform.Define(stage, path)
+        return UsdGeom.Xform.Define(_stage, path)
 
 def add_render_settings_sublayer(settings_usd_path: str, insert_on_top: bool = True) -> bool:
     """
@@ -79,12 +87,13 @@ def add_render_settings_sublayer(settings_usd_path: str, insert_on_top: bool = T
 
 def _default_prim_set(stage: Usd.Stage):
     
-    world_xform = get_or_create_xform(stage, world_path)
+    _stage = omni.usd.get_context().get_stage()
+    world_xform = get_or_create_xform(_stage, world_path)
     # Set World as the stage's defaultPrim
-    stage.SetDefaultPrim(world_xform.GetPrim())
+    _stage.SetDefaultPrim(world_xform.GetPrim())
     
     setup_path = f"{world_path}/Setup"
-    setup_scope = get_or_create_scope(stage, setup_path)
+    setup_scope = get_or_create_scope(_stage, setup_path)
 
 def _import_camera(stage: Usd.Stage, brand_camera_model: str, combo_elements: list, templates_dir: str):
     _default_prim_set(stage)

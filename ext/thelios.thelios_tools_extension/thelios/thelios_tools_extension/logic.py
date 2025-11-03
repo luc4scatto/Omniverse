@@ -2,18 +2,20 @@ import omni.ui as ui
 from omni.ui import color as cl
 import omni.usd
 from omni.kit.notification_manager import post_notification, NotificationStatus
-from omni.kit.window.filepicker import FilePickerDialog
+import asyncio
 
 from . import constants
 from .models import TheliosWindowModel
 
-from .tools.queries import plm_query, brand_query
-from .tools.usd import usd_tools
-from .tools.templates import template_tools
-from .tools.render import render_settings, render_launch
+from .tools.utils import queries as qu #plm_query, brand_query
+from .tools.utils import usd_tools
+from .tools.utils import template_tools
+from .tools.render.custom_render_sequence import OmniCustomSequenceRenderer
+from .tools.render import render_settings
 
 class TheliosLogic:
     def __init__(self, model: TheliosWindowModel):
+        
         self.model = model
         
         self.apply_filter = False
@@ -23,11 +25,12 @@ class TheliosLogic:
         self.brand_combo = None
         self.type_combo = None
         self.release_field = None
-        
-        self._stage = omni.usd.get_context().get_stage()
+        #self.resolution_combo = None
         
         self.templates_dir = constants.TEMPLATES_PATH
-            
+        
+        self._stage = omni.usd.get_context().get_stage()
+                    
     def like_radio(self, model, first):
             """Turn on the model and turn off two checkboxes"""
             if model.get_value_as_bool():
@@ -42,7 +45,7 @@ class TheliosLogic:
             else:
                 slider.style = constants.SLIDER_DISABLED_STYLE
                 
-    def _render_sequence(self):
+    def _render_sequence(self, res_combo):
         
         export_path = self.model.type_string_model.get_value_as_string()
         
@@ -51,28 +54,44 @@ class TheliosLogic:
         
         single_frame = self.model.singlefr_model.get_value_as_int()
         
-        resolution_model = self.model.resolution_combo.get_item_value_model()
+        resolution_model = res_combo.get_item_value_model()
         
+        seq_value = self.model.sequence_model.get_value_as_bool()
+        single_value = self.model.single_model.get_value_as_bool()
+        
+        #print(f"--- Sequence Value: {seq_value} ---")
+        #print(f"--- Single Value: {single_value} ---")
+        
+        print(f"--- Export Path: {export_path} ---")
+        
+        if seq_value:
+            bool_value = True
+            print(f"--- Start Frame: {start_frame} ---")        
+            print(f"--- End Frame: {end_frame} ---")
+        elif single_value:
+            bool_value = False
+            print(f"--- Single Frame: {single_frame} ---")
+        else:
+            print("No render type selected, defaulting to Sequence")
+            return
+                
         res_index = resolution_model.as_int
         res_value = constants.RESOLUTIONS[res_index]
         
-        print(f"Export Path: {export_path}")
-        print(f"Resolution: {res_value}")
-        print(f"Start Frame: {start_frame}")        
-        print(f"End Frame: {end_frame}")
-        print(f"Single Frame: {single_frame}")
+        print(f"--- Resolution: {res_value} ---")
         
-        render_launch.render_launch_png(res_value,
-                                        export_path,
-                                        constants.SING_SEQ,
-                                        start_frame, 
-                                        end_frame, 
-                                        single_frame)
+        renderer = OmniCustomSequenceRenderer(constants.TEMP_NAME,
+                                                res_value, 
+                                                export_path, 
+                                                bool_value, 
+                                                start_frame, 
+                                                end_frame, 
+                                                single_frame)
         
-        
+        asyncio.ensure_future(renderer.render_sequence())
         
     def get_combo_elements(self):
-        combo_elements = brand_query.pop_combo_brands(constants.DB_KEY)
+        combo_elements = qu.pop_combo_brands(constants.DB_KEY)
         return combo_elements
         
     def create_scrolling_frame(self):
@@ -106,8 +125,6 @@ class TheliosLogic:
             -> Creates /World/Models/glass_Xform/Model_Xform/Release_v1.0/Model_002
             -> Imports payloads from Model_001.usd and Model_002.usd
         """
-        context = omni.usd.get_context()
-        stage = context.get_stage()
         
         model_value = self.model.model_model.get_value_as_string()
         print(model_value)
@@ -121,7 +138,7 @@ class TheliosLogic:
             release = data[1]
             
             # Create USD hierarchy structure
-            usd_tools.create_hierarchy_structure(stage, model_value, sku, release)
+            usd_tools.create_hierarchy_structure(self._stage, model_value, sku, release)
             
             # Construct paths for payload import
             sku_prim_path = f"/World/Models/glass_Xform/{model_value}_Xform/Release_{release}/{model_value}_{sku}"
@@ -148,7 +165,7 @@ class TheliosLogic:
                         for the specified model
             """
             model_value = self.model.model_model.get_value_as_string()
-            model_sku_res = plm_query.get_sku_model_plm(constants.DB_KEY, str(model_value))
+            model_sku_res = qu.get_sku_model_plm(constants.DB_KEY, str(model_value))
             return model_sku_res
         
     def _get_plm_data(self) -> list:
@@ -186,8 +203,8 @@ class TheliosLogic:
         
         # Handle combined queries for "All Woman" category
         if type_value == "All Woman":
-            res_query_optical_woman = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Optical - Woman")
-            res_query_sun_woman = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Sun - Woman")
+            res_query_optical_woman = qu.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Optical - Woman")
+            res_query_sun_woman = qu.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Sun - Woman")
             
             res_query_sun = list(set(res_query_optical_woman).union(set(res_query_sun_woman)))
             sorted_list = sorted(res_query_sun, key=lambda x: x[0])
@@ -196,8 +213,8 @@ class TheliosLogic:
             
         # Handle combined queries for "All Man" category
         elif type_value == "All Man":
-            res_query_optical_man = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Optical - Man")
-            res_query_sun_man = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Sun - Man")
+            res_query_optical_man = qu.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Optical - Man")
+            res_query_sun_man = qu.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),"Sun - Man")
             
             result_query_man = list(set(res_query_optical_man).union(set(res_query_sun_man)))
             sorted_list = sorted(result_query_man, key=lambda x: x[0])
@@ -206,12 +223,12 @@ class TheliosLogic:
             
         # Handle single category queries
         else:
-            res_query = plm_query.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),str(type_value))
+            res_query = qu.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),str(type_value))
             print(res_query)
             return res_query
         
     # ---------------------------------------------------------------------------------------------------
-
+    
     def _import_sel_skus(self):
             """
             Trigger the display of SKU selection interface.

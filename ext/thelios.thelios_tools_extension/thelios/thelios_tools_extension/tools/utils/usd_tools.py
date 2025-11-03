@@ -50,6 +50,7 @@ def create_hierarchy_structure(stage: Usd.Stage, model_name: str, sku_name: str,
         >>> create_hierarchy_structure(stage, "Chair", "001", "v1.0")
         # Creates: /World/Models/glass_Xform/Chair_Xform/Release_v1.0/Chair_001
     """
+    _stage = omni.usd.get_context().get_stage()
     
     def get_or_create_scope(stage: Usd.Stage, path: str) -> UsdGeom.Scope:
         """
@@ -62,11 +63,11 @@ def create_hierarchy_structure(stage: Usd.Stage, model_name: str, sku_name: str,
         Returns:
             UsdGeom.Scope: The existing or newly created Scope
         """
-        prim = stage.GetPrimAtPath(path)
+        prim = _stage.GetPrimAtPath(path)
         if prim.IsValid():
             return UsdGeom.Scope(prim)
         else:
-            return UsdGeom.Scope.Define(stage, path)
+            return UsdGeom.Scope.Define(_stage, path)
     
     def get_or_create_xform(stage: Usd.Stage, path: str) -> UsdGeom.Xform:
         """
@@ -79,30 +80,30 @@ def create_hierarchy_structure(stage: Usd.Stage, model_name: str, sku_name: str,
         Returns:
             UsdGeom.Xform: The existing or newly created Xform
         """
-        prim = stage.GetPrimAtPath(path)
+        prim = _stage.GetPrimAtPath(path)
         if prim.IsValid():
             return UsdGeom.Xform(prim)
         else:
-            return UsdGeom.Xform.Define(stage, path)
+            return UsdGeom.Xform.Define(_stage, path)
     
     # 0. Create/get World as root and defaultPrim
     world_path = "/World"
-    world_xform = get_or_create_xform(stage, world_path)
+    world_xform = get_or_create_xform(_stage, world_path)
     
     # Set World as the stage's defaultPrim
-    stage.SetDefaultPrim(world_xform.GetPrim())
+    _stage.SetDefaultPrim(world_xform.GetPrim())
     
     # 1. Create Models (Scope) under World
     models_path = f"{world_path}/Models"
-    models_scope = get_or_create_scope(stage, models_path)
+    models_scope = get_or_create_scope(_stage, models_path)
     
     # 2. Create glass_Xform (Xform) under Models
     glass_xform_path = f"{models_path}/glass_Xform"
-    glass_xform = get_or_create_xform(stage, glass_xform_path)
+    glass_xform = get_or_create_xform(_stage, glass_xform_path)
     
     # Apply 45° rotation animation on Y axis to glass_Xform ---------
     
-    prim = stage.GetPrimAtPath(glass_xform_path)
+    prim = _stage.GetPrimAtPath(glass_xform_path)
     xformable = UsdGeom.Xformable(prim)
     rotY = xformable.GetRotateYOp()
     if not rotY:
@@ -115,15 +116,15 @@ def create_hierarchy_structure(stage: Usd.Stage, model_name: str, sku_name: str,
     
     # 3. Create model_name_Xform (Xform) under glass_Xform
     model_xform_path = f"{glass_xform_path}/{model_name}_Xform"
-    model_xform = get_or_create_xform(stage, model_xform_path)
+    model_xform = get_or_create_xform(_stage, model_xform_path)
     
     # 4. Create Release (Scope) under model_name_Xform
     release_scope_path = f"{model_xform_path}/Release_{release}"
-    release_scope = get_or_create_scope(stage, release_scope_path)
+    release_scope = get_or_create_scope(_stage, release_scope_path)
     
     # 5. Create SKU scope with underscore to avoid path errors
     sku_scope_path = f"{release_scope_path}/{model_name}_{str(sku_name)}"
-    sku_scope = get_or_create_scope(stage, sku_scope_path)
+    sku_scope = get_or_create_scope(_stage, sku_scope_path)
 
 def check_usd_file_exists(file_path: str) -> bool:
     """
@@ -231,10 +232,10 @@ def _get_or_create_prim(stage: Usd.Stage, path: str) -> Usd.Prim:
         - Prims containing "_Xform" or named "World" become UsdGeom.Xform
         - All other prims become UsdGeom.Scope
     """
-    
+    _stage = omni.usd.get_context().get_stage()
     # First search by name
     prim_name = path.split("/")[-1]
-    for prim in stage.Traverse():
+    for prim in _stage.Traverse():
         if prim.GetName() == prim_name:
             return prim
     
@@ -248,13 +249,13 @@ def _get_or_create_prim(stage: Usd.Stage, path: str) -> Usd.Prim:
         current_path = f"{current_path.rstrip('/')}/{part}"
         sdf_path = Sdf.Path(current_path)
         
-        if not stage.GetPrimAtPath(sdf_path).IsValid():
+        if not _stage.GetPrimAtPath(sdf_path).IsValid():
             if "_Xform" in part or part == "World":
-                UsdGeom.Xform.Define(stage, sdf_path)
+                UsdGeom.Xform.Define(_stage, sdf_path)
             else:
-                UsdGeom.Scope.Define(stage, sdf_path)
+                UsdGeom.Scope.Define(_stage, sdf_path)
     
-    return stage.GetPrimAtPath(Sdf.Path(path))
+    return _stage.GetPrimAtPath(Sdf.Path(path))
 
 def import_payload(payload_usd_path: str, target_path: str) -> None:
     """

@@ -1,15 +1,20 @@
-from omni.kit.viewport.utility import get_active_viewport_window
-from pxr import Usd, UsdGeom, UsdPhysics, UsdShade, Sdf, Gf, Tf
 import asyncio
 import carb
 import carb.settings
 
-from omni.kit.viewport.utility import get_active_viewport, capture_viewport_to_file
+from omni.kit.viewport.utility import get_active_viewport, get_active_viewport_window,capture_viewport_to_file
 import omni.kit.actions.core
+import omni.usd
+import omni.timeline
 
 #from .viewport_capture import render_png
 
 def render_png(output_path: str):
+    
+    #Disable selection to avoid UI elements in the capture
+    selection = omni.usd.get_context().get_selection()
+    selection.clear_selected_prim_paths()
+    
     async def capture(filePath : str, hdr : bool = False):
         
         # Assign ldr/hdr in settings.
@@ -55,21 +60,38 @@ def viewport_settings(res: str):
     viewport_api.fill_frame = False  # disattiva l'adattamento automatico
     viewport_api.resolution = final_res
 
-def get_output_path(ext: str = "png") -> str:
+def get_filename(frame: str, ext: str = "png") -> str:
     
     sku_name = "CD40153U_32P"
-    frame = "01"
     file_name = f"{sku_name}_{frame}.{ext}"
     return file_name
     
 def render_launch_png(resolution: str, 
                     output_path: str,
-                    sing_seq: bool,
+                    bool_value: bool,
                     start_frame: int,
                     end_frame: int,
                     single_frame: int):
     
-    output_path = get_output_path()
     viewport_settings(resolution)
-    render_png(output_path)
+    timeline = omni.timeline.get_timeline_interface()
     
+    async def render_png(output_path: str):
+        if bool_value:
+            for frame in range(start_frame, end_frame + 1):
+                print(f"current_frame: {frame}")
+                custom_output = f"{output_path}{get_filename(str(frame),"png")}"
+                timeline.set_current_time(frame)
+                
+                active_viewport = get_active_viewport()
+                await active_viewport.wait_for_rendered_frames()
+                #timeline.update_timeline()
+                render_png(custom_output)
+        else:
+            custom_output = f"{output_path}{get_filename(str(frame),"png")}"
+            timeline.set_current_time(single_frame)
+            #timeline.update_timeline()
+            render_png(custom_output)
+        
+        print(f"output_path: {custom_output}, bool_value: {bool_value}, start_frame: {start_frame}, end_frame: {end_frame}, single_frame: {single_frame}")
+    asyncio.ensure_future( render_png(output_path) )

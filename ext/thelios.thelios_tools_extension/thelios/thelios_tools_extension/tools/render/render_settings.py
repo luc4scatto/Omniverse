@@ -1,29 +1,35 @@
 import carb.settings
 from omni.kit.viewport.utility import get_active_viewport_window
 
+from ... import constants
+
 def import_render_settings():
     
     settings = carb.settings.get_settings()
-
+    
     #Path Tracing settings
     settings.set("/rtx/rendermode", "PathTracing")
-
-    settings.set("/rtx/pathtracing/spp", 16)
-    settings.set("/rtx/pathtracing/totalSpp", 1024)
-    settings.set("/rtx/pathtracing/adaptiveSampling/enabled", True)
     
-    settings.set("/rtx/pathtracing/maxBounces", 32)
-    settings.set("/rtx/pathtracing/maxSpecularAndTransmissionBounces", 32)
-    settings.set("/rtx/pathtracing/maxVolumeBounces", 16)
-    settings.set("/rtx/pathtracing/ptfog/maxBounces", 2)
-
+    settings.set("/rtx/pathtracing/spp", constants.SAMPLE_PER_PIXEL)
+    settings.set("/rtx/pathtracing/totalSpp", constants.TOTAL_SPP)
+    settings.set("/rtx/pathtracing/adaptiveSampling/enabled", constants.ADAPTIVE_SAMPLING_ENABLED)
+    settings.set("/rtx/pathtracing/adaptiveSampling/targetError", constants.TARGET_ERROR)
+    
+    settings.set("/rtx/pathtracing/maxBounces", constants.MAX_BOUNCES)
+    settings.set("/rtx/pathtracing/maxSpecularAndTransmissionBounces", constants.MAX_SPEC_TRANSM_BOUNCES)
+    settings.set("/rtx/pathtracing/maxVolumeBounces", constants.MAX_VOLUME_BOUNCES)
+    settings.set("/rtx/pathtracing/ptfog/maxBounces", constants.MAX_FOG_BOUNCES)
+    
+    #Anti-Aliasing settings
+    settings.set("/rtx/pathtracing/aa/op", constants.ANTI_ALIASING_PATTERN)
+    
     #Background settings
-    settings.set("/rtx/background/source/type",2)
-    settings.set("/rtx/background/source/color", [1.0, 1.0, 1.0])
-
-    settings.set("/rtx/background/source/texture/luminanceScale", 15)
-
+    settings.set("/rtx/background/source/type", constants.BACKGROUND_TYPE)
+    settings.set("/rtx/background/source/color", constants.BACKGROUND_COLOR)
+    
+    settings.set("/rtx/background/source/texture/luminanceScale", constants.LUM_SCALE)
+    
     #Post Processing settings
-    settings.set("/rtx/post/tonemap/ocio/enabled", True)
-
+    settings.set("/rtx/post/tonemap/ocio/enabled", constants.OCIO_ENABLED)
+    
     print("Impostazioni di render aggiornate con successo!")
