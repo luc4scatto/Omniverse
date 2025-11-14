@@ -6,11 +6,15 @@ from omni.ui import color as cl
 
 DB_KEY = "Driver={SQL Server}; Server=10.189.24.40; uid=rendering_dep; pwd=251_ee5FJK?58fde723c8cf9c!; Trusted_Connection=No;"
 
-#Sequence const -------------------------------------------------
+#Models --------------------------------------------------------
 
 DEFAULT_RELEASE = 262
 START_FRAME = 1
 END_FRAME = 8
+SLIDER_VIEW = 1
+
+#Sequence const -------------------------------------------------
+
 SEQUENCE = True
 SINGLE_FRAME = False
 
@@ -35,6 +39,7 @@ IMPORT_TEMPLATE_UI_VISIBILITY = False
 IMPORT_ALL_COLLECTION_UI_VISIBILITY = True
 CUSTOM_IMPORT_TEMPLATE_UI_VISIBILITY = False
 CUSTOM_MODEL_IMPORT_UI_VISIBILITY = True
+RENDER_UI_VISIBILITY = True
 
 #Styles ------------------------------------------------------
 
@@ -74,11 +79,16 @@ BACKGROUND_COLOR = [1.0, 1.0, 1.0]
 LUM_SCALE = 15
 OCIO_ENABLED = True
 
-EXT = "png"
 WAIT_FRAMES = 300
-
 ANTI_ALIASING_PATTERN = 3
 
+# capture extensions settings
+
+EXT = "png"
+#EXT = "exr"
+SAVE_ALPHA = True
+PATH_TRACE_SPP = 256
+PREROLL_FRAMES = 3
 
 #USD variables ----------------------------------------------
 
@@ -86,6 +96,12 @@ CAMERA_TARGET = "/World/Setup/Cameras"
 LIGHT_TARGET = "/World/Setup/Lights"
 LIMBO_TARGET = "/World/Setup/Limbo"
 WORLD_PATH = "/World"
+
+SCOPES_TO_KEEP = [  "Models", 
+                    "Setup", 
+                    "Lights", 
+                    "Cameras"
+                ]
 
 #-------------------------------------------------------------
 

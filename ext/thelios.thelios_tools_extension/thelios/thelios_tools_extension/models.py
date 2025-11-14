@@ -9,13 +9,15 @@ class TheliosWindowModel:
         self.model_model = ui.SimpleStringModel()
         self.brand_string_model = ui.SimpleStringModel()
         self.type_string_model = ui.SimpleStringModel()
-
+        
         self.startfr_model = ui.SimpleIntModel(constants.START_FRAME)
         self.endfr_model = ui.SimpleIntModel(constants.END_FRAME)
         self.singlefr_model = ui.SimpleIntModel(constants.END_FRAME)
-
+        
         self.sequence_model = ui.SimpleBoolModel(constants.SEQUENCE)
         self.single_model = ui.SimpleBoolModel(constants.SINGLE_FRAME)
-
+        
+        self.slider_view_model = ui.SimpleStringModel("")
+        
         #self._timeline = omni.timeline.get_timeline_interface()
         #self._current_fps = self._timeline.get_time_codes_per_seconds()

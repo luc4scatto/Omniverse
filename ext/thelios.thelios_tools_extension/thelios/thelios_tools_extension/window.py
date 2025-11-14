@@ -5,7 +5,7 @@ import carb
 
 #from .utils import load_config
 from .tools.style import style_widgets
-from .ui_modules_import import ImportTemplatePanel, CustomModelImportPanel, CustomTemplateImportPanel, ImportAllCollectionPanel, RenderSettingsPanel
+from .ui_modules_import import ImportTemplatePanel, CustomModelImportPanel, CustomTemplateImportPanel, ImportAllCollectionPanel, RenderSettingsPanel, ViewPanel
 from .models import TheliosWindowModel
 from .logic import TheliosLogic
 
@@ -67,5 +67,8 @@ class TheliosToolsWindow:
                         #Import render settings panel class
                         self.render_panel = RenderSettingsPanel(self.model, self.logic)
                         self.render_panel.build(CollapsableFrame_style)
+                        
+                        self.view_panel = ViewPanel(self.model, self.logic)
+                        self.view_panel.build(CollapsableFrame_style)
                         
         return self._editor_window

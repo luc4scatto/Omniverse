@@ -18,8 +18,9 @@ class TheliosExtension(omni.ext.IExt):
     def on_startup(self, ext_id):
         
         thelios_models = TheliosWindowModel()
-        viewport_window = get_active_viewport_window()
         logic = TheliosLogic(thelios_models)
+        
+        viewport_window = get_active_viewport_window()
         if viewport_window is not None:
             self.thelios_tools = TheliosToolsWindow(thelios_models, viewport_window, logic, ext_id)
             

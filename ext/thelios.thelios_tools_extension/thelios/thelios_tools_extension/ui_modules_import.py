@@ -6,7 +6,7 @@ from omni.kit.window.filepicker import FilePickerDialog
 from .tools.utils import template_tools
 from . import constants
 from .models import TheliosWindowModel
-from .logic import TheliosLogic
+from .logic import TheliosLogic, OnImportContext
 
 class ImportTemplatePanel:
     def __init__(self):
@@ -113,18 +113,20 @@ class CustomTemplateImportPanel:
                         ui.Label("Settings", name="label")
                         
                     def on_import_click():
-                        self.logic.on_import_click(camera_checkbox, 
-                                                    lights_checkbox, 
-                                                    limbo_checkbox, 
-                                                    settings_checkbox, 
-                                                    self.brand_camera_combo)
+                        context = OnImportContext(_camera_checkbox = camera_checkbox, 
+                                                    _lights_checkbox = lights_checkbox, 
+                                                    _limbo_checkbox = limbo_checkbox, 
+                                                    _settings_checkbox = settings_checkbox,
+                                                    _brand_camera_combo = self.brand_camera_combo)
+                        self.logic.on_import_click(context)
                         
                     def on_import_click_all():  
-                        self.logic.on_import_click_all(camera_checkbox, 
-                                                        lights_checkbox, 
-                                                        limbo_checkbox, 
-                                                        settings_checkbox, 
-                                                        self.brand_camera_combo)
+                        context = OnImportContext(_camera_checkbox = camera_checkbox, 
+                                                    _lights_checkbox = lights_checkbox, 
+                                                    _limbo_checkbox = limbo_checkbox, 
+                                                    _settings_checkbox = settings_checkbox,
+                                                    _brand_camera_combo = self.brand_camera_combo)
+                        self.logic.on_import_click_all(context)
                     
                 # Import button
                 self.import_temp_item_btn = ui.Button("Import Selected", clicked_fn=on_import_click, name="import_collection")
@@ -145,7 +147,7 @@ class CustomModelImportPanel:
                 with ui.HStack(spacing=10, alignment=ui.Alignment.V_CENTER):
                     ui.Label("Model", name="label", width=constants.LABEL_PADDING)
                     self.model_field = ui.StringField(self.model.model_model, name="model", height=10, style={"margin":3})
-                    self.import_custom_button = ui.Button("Select Model", clicked_fn=self.logic._import_sel_skus, name="select_model")
+                    self.import_custom_button = ui.Button("Select Model", clicked_fn=self.logic._import_sel_skus_payloads, name="select_model")
                     
                 with ui.ZStack():
                     ui.Rectangle(style={"background_color": cl(0.25), 
@@ -174,10 +176,10 @@ class CustomModelImportPanel:
                     
                     # ScrollingFrame with internal Frame for content
                     
-                    self.scroll_frame = self.logic.create_scrolling_frame()
+                    self.scroll_frame_payloads = self.logic.create_scrolling_frame()
                     
                     # Set build function for dynamic content
-                    self.scroll_frame.set_build_fn(self.logic._build_scrolling_content)
+                    self.scroll_frame_payloads.set_build_fn(self.logic._build_scrolling_content_payloads)
                     
                     ui.Spacer(height=16)
                     with ui.HStack():
@@ -194,7 +196,7 @@ class CustomModelImportPanel:
                     
                     ui.Spacer(height=8)
                     
-    def _import_sel_skus(self):
+    def _import_sel_skus_payloads(self):
             """
             Trigger the display of SKU selection interface.
             
@@ -203,7 +205,7 @@ class CustomModelImportPanel:
             This method is called when the "Select Model" button is clicked.
             """
             self.show_labels = True
-            self.scroll_frame.rebuild()  # Update ScrollingFrame content
+            self.scroll_frame_payloads.rebuild()  # Update ScrollingFrame content
             
 class ImportAllCollectionPanel:
     def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
@@ -259,16 +261,45 @@ class RenderSettingsPanel:
             )
             dialog.show()
             
-        
-        
-        with ui.CollapsableFrame(title="Render", style=style, collapsed=False):
+        with ui.CollapsableFrame(title="Render", style=style, collapsed=constants.RENDER_UI_VISIBILITY):
             with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                
+                # Main container for the table
+                with ui.VStack(spacing=0):
+                    # Table headers
+                    with ui.HStack():
+                        ui.Label("MODEL", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
+                        ui.Label("SKU", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
+                        #ui.Label("RELEASE", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
+                        ui.Label("IMPORT", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
+                    
+                    ui.Spacer(height=4)
+                    
+                    # ScrollingFrame with internal Frame for content
+                    
+                    self.scroll_frame_render = self.logic.create_scrolling_frame()
+                    
+                    # Set build function for dynamic content
+                    def create_scrolling_content_render():
+                        self.scroll_frame_render.set_build_fn(self.logic._build_scrolling_content_render)
+                        
+                    ui.Spacer(height=10)
+                    
+                    with ui.HStack(spacing=10):
+                        self.refresh_render_select_btn = ui.Button("Refresh", clicked_fn= create_scrolling_content_render,name="render_sequence")
+                        self.select_all_render_select_btn = ui.Button("Select All", clicked_fn=self.logic._select_all_render_items, name="render_sequence")
+                        self.deselect_all_render_select_btn = ui.Button("Deselect All", clicked_fn=self.logic._deselect_all_render_items, name="render_sequence")
+                        
+                    #self.render_render_select_btn = ui.Button("Render Selected", clicked_fn= self.logic._render_selected_skus, name="render_sequence")
+                    
+                    #self.refresh_render_select_btn = ui.Button("Refresh", clicked_fn= self.logic._render_selected_skus,name="render_sequence")
                 
                 with ui.HStack(spacing=10):
                     
                     ui.Label("Exp. Path", name="label", width=constants.LABEL_PADDING)
                     
                     export_path_field = ui.StringField(self.model.type_string_model, name="export_path", height=10)
+                    
                     ui.Button(name="Scegli cartella", 
                             image_url="resources/icons/folder.png", 
                             alignemnt=ui.Alignment.TOP,
@@ -328,15 +359,44 @@ class RenderSettingsPanel:
                 sequence_checkbox.model.add_value_changed_fn(lambda model: self.logic.on_checkbox_changed(model, self.end_slider))  
                 single_checkbox.model.add_value_changed_fn(lambda model: self.logic.on_checkbox_changed(model, self.single_slider))
                     
-                self.render_btn = ui.Button("Render", clicked_fn=lambda: self.logic._render_sequence(self.resolution_combo), name="render_sequence")
-                
+                #self.render_btn = ui.Button("Render", clicked_fn=lambda combobox = self.resolution_combo: self.logic._render_selected_skus(combobox), name="render_sequence")
+                self.render_render_select_btn = ui.Button("Render Selected", clicked_fn= lambda combobox = self.resolution_combo: self.logic._render_selected_skus_async(combobox), name="render_sequence")
 class ViewPanel:
     def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
         self.model = model
         self.logic = logic
         
+        self.start_slider_widget = None  # widget slider
+        self.start_slider = None         # modello slider
+        self.slider_parent_layout = None # layout contenitore slider
+        
     def build(self, style):
         with ui.CollapsableFrame(title="View", style=style, collapsed=False):
             with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
-                self.refresh_view_btn = ui.Button("Refresh Viewport", clicked_fn=self.logic._refresh_viewport, name="refresh_viewport")
+                    
+                with ui.HStack(spacing=5):
+                    self.payloads_combo = ui.ComboBox(0, "", height=10, name="combo_payloads", style={"margin":3}).model
+                    self.refresh_btn = ui.Button("Refresh", clicked_fn= lambda combobox = self.payloads_combo: self.logic.clear_and_populate_combo(combobox), name="refresh_button")
+                    
+                    self.select_btn = ui.Button("Select", clicked_fn=lambda combobox = self.payloads_combo: self.logic._get_selected_scope(combobox), name="select_button")
+                    
+                ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                    
+                with ui.HStack(spacing=5) as hstack:
+                    
+                    self.slider_parent_layout = hstack
+                    self.back_frame_btn = ui.Button("<--", width=50, name="back_fr_button")
+                    
+                    len_payloads = self.logic._get_payloads_lenght()
+                    print(f"Length payload list: {len_payloads}")
+                    #self.start_slider = ui.IntSlider(min=1, max=len_payloads, step=1, style={"margin":3}).model
+                    start_slider = self.logic._build_view_slider()
+                    self.start_slider_sub = start_slider.subscribe_value_changed_fn(self.logic._on_slider_changed )
+                    #self.start_slider.model = self.model.slider_view_model
+                    
+                        
+                    self.fwd_frame_btn = ui.Button("-->", width=50, name="fwd_fr_button")
+                    
+                self.selected_model_field = ui.StringField(self.model.slider_view_model, name="sel_model", style={"margin":3})
                 
+    

@@ -4,6 +4,8 @@ import omni.usd
 from omni.kit.notification_manager import post_notification, NotificationStatus
 import asyncio
 
+from dataclasses import dataclass
+
 from . import constants
 from .models import TheliosWindowModel
 
@@ -13,6 +15,14 @@ from .tools.utils import template_tools
 from .tools.render.custom_render_sequence import OmniCustomSequenceRenderer
 from .tools.render import render_settings
 
+@dataclass
+class OnImportContext:
+    _camera_checkbox: bool
+    _lights_checkbox: bool
+    _limbo_checkbox: bool
+    _settings_checkbox: bool
+    _brand_camera_combo: str
+    
 class TheliosLogic:
     def __init__(self, model: TheliosWindowModel):
         
@@ -21,6 +31,7 @@ class TheliosLogic:
         self.apply_filter = False
         self.show_labels = False 
         self.checkbox_data = []
+        self.checkbox_render_data = []
         
         self.brand_combo = None
         self.type_combo = None
@@ -44,63 +55,18 @@ class TheliosLogic:
                 slider.style = constants.SLIDER_ENABLED_STYLE
             else:
                 slider.style = constants.SLIDER_DISABLED_STYLE
-                
-    def _render_sequence(self, res_combo):
-        
-        export_path = self.model.type_string_model.get_value_as_string()
-        
-        start_frame = self.model.startfr_model.get_value_as_int()
-        end_frame = self.model.endfr_model.get_value_as_int()
-        
-        single_frame = self.model.singlefr_model.get_value_as_int()
-        
-        resolution_model = res_combo.get_item_value_model()
-        
-        seq_value = self.model.sequence_model.get_value_as_bool()
-        single_value = self.model.single_model.get_value_as_bool()
-        
-        #print(f"--- Sequence Value: {seq_value} ---")
-        #print(f"--- Single Value: {single_value} ---")
-        
-        print(f"--- Export Path: {export_path} ---")
-        
-        if seq_value:
-            bool_value = True
-            print(f"--- Start Frame: {start_frame} ---")        
-            print(f"--- End Frame: {end_frame} ---")
-        elif single_value:
-            bool_value = False
-            print(f"--- Single Frame: {single_frame} ---")
-        else:
-            print("No render type selected, defaulting to Sequence")
-            return
-                
-        res_index = resolution_model.as_int
-        res_value = constants.RESOLUTIONS[res_index]
-        
-        print(f"--- Resolution: {res_value} ---")
-        
-        renderer = OmniCustomSequenceRenderer(constants.TEMP_NAME,
-                                                res_value, 
-                                                export_path, 
-                                                bool_value, 
-                                                start_frame, 
-                                                end_frame, 
-                                                single_frame)
-        
-        asyncio.ensure_future(renderer.render_sequence())
         
     def get_combo_elements(self):
         combo_elements = qu.pop_combo_brands(constants.DB_KEY)
         return combo_elements
         
     def create_scrolling_frame(self):
-        self.scroll_frame = ui.ScrollingFrame(
+        scrolling_frame = ui.ScrollingFrame(
                         height=200,
                         horizontal_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_OFF,
                         vertical_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_ON,
                     )
-        return self.scroll_frame
+        return scrolling_frame
         
     def _create_hierarchy_and_import_payload(self):
         """
@@ -130,7 +96,7 @@ class TheliosLogic:
         print(model_value)
         
         # Get selected SKUs from checkboxes
-        get_selected = self._get_selected_items()
+        get_selected = self._get_selected_items_payloads()
         
         # Process each selected SKU
         for data in get_selected:
@@ -150,7 +116,7 @@ class TheliosLogic:
             
             # Import the payload
             usd_tools.import_payload(payload_file_path, sku_prim_path)
-            
+        
     # PLM query functions -------------------------------------------------------------------------------
         
     def _get_sku_model_plm(self):
@@ -226,10 +192,10 @@ class TheliosLogic:
             res_query = qu.get_plm_data(constants.DB_KEY,str(season_value),str(brand_value),str(type_value))
             print(res_query)
             return res_query
-        
-    # ---------------------------------------------------------------------------------------------------
+            
+    # Payloads selection functions ---------------------------------------------------------------------
     
-    def _import_sel_skus(self):
+    def _import_sel_skus_payloads(self):
             """
             Trigger the display of SKU selection interface.
             
@@ -241,7 +207,7 @@ class TheliosLogic:
             self.show_labels = True
             self.scroll_frame.rebuild()  # Update ScrollingFrame content
         
-    def _get_selected_items(self):
+    def _get_selected_items_payloads(self):
         """
         Extract selected items from checkbox data.
         
@@ -252,7 +218,7 @@ class TheliosLogic:
             list: List of tuples containing (SKU, Release) for selected items
                 
         Example:
-            >>> selected = self._get_selected_items()
+            >>> selected = self._get_selected_items_payloads()
             >>> print(selected)
             [('001', '261'), ('003', '262')]
         """
@@ -265,7 +231,7 @@ class TheliosLogic:
         print(f"Selected items: {selected_items}")
         return selected_items
         
-    def _build_scrolling_content(self):
+    def _build_scrolling_content_payloads(self):
         """
         Build the scrollable content for SKU selection table with optional filtering.
         
@@ -322,8 +288,300 @@ class TheliosLogic:
                             'checkbox': checkbox,
                             'sku': item[0],
                             'release': item[1]
-                        })
+                        })  
+    
+    # Rendering section --------------------------------------------------------------------------------
+    
+    def _render_sequence(self, res_combo, model_name):
+        
+        export_path = self.model.type_string_model.get_value_as_string()
+        
+        start_frame = self.model.startfr_model.get_value_as_int()
+        end_frame = self.model.endfr_model.get_value_as_int()
+        
+        single_frame = self.model.singlefr_model.get_value_as_int()
+        
+        resolution_model = res_combo.get_item_value_model()
+        
+        seq_value = self.model.sequence_model.get_value_as_bool()
+        single_value = self.model.single_model.get_value_as_bool()
+        
+        #print(f"--- Sequence Value: {seq_value} ---")
+        #print(f"--- Single Value: {single_value} ---")
+        
+        print(f"--- Export Path: {export_path} ---")
+        
+        if seq_value:
+            bool_value = True
+            print(f"--- Start Frame: {start_frame} ---")        
+            print(f"--- End Frame: {end_frame} ---")
+        elif single_value:
+            bool_value = False
+            print(f"--- Single Frame: {single_frame} ---")
+        else:
+            print("No render type selected, defaulting to Sequence")
+            return
+                
+        res_index = resolution_model.as_int
+        res_value = constants.RESOLUTIONS[res_index]
+        
+        print(f"--- Resolution: {res_value} ---")
+        
+        renderer = OmniCustomSequenceRenderer(model_name,
+                                                res_value, 
+                                                export_path, 
+                                                bool_value, 
+                                                start_frame, 
+                                                end_frame, 
+                                                single_frame)
+        
+        asyncio.ensure_future(renderer.render_sequence())
+        
+    def _render_sequence_v2(self, res_combo, model_name):
+        export_path = self.model.type_string_model.get_value_as_string()
+        
+        start_frame = self.model.startfr_model.get_value_as_int()
+        end_frame = self.model.endfr_model.get_value_as_int()
+        
+        single_frame = self.model.singlefr_model.get_value_as_int()
+        
+        resolution_model = res_combo.get_item_value_model()
+        
+        seq_value = self.model.sequence_model.get_value_as_bool()
+        single_value = self.model.single_model.get_value_as_bool()
+        
+        print(f"--- Export Path: {export_path} ---")
+        
+        if seq_value:
+            bool_value = True
+            print(f"--- Start Frame: {start_frame} ---")        
+            print(f"--- End Frame: {end_frame} ---")
+        elif single_value:
+            bool_value = False
+            print(f"--- Single Frame: {single_frame} ---")
+        else:
+            print("No render type selected, defaulting to Sequence")
+            return
+                
+        res_index = resolution_model.as_int
+        res_value = constants.RESOLUTIONS[res_index]
+        
+        print(f"--- Resolution: {res_value} ---")
+        
+        renderer = OmniCustomSequenceRenderer(model_name,
+                                                res_value, 
+                                                export_path, 
+                                                bool_value, 
+                                                start_frame, 
+                                                end_frame, 
+                                                single_frame)
+        
+        renderer.start_capture_extension_render()
+        #asyncio.ensure_future(renderer.start_capture_extension_render())
+        
+    def _render_sequence_v2(self, res_combo, model_name):
+        export_path = self.model.type_string_model.get_value_as_string()
+        
+        start_frame = self.model.startfr_model.get_value_as_int()
+        end_frame = self.model.endfr_model.get_value_as_int()
+        
+        single_frame = self.model.singlefr_model.get_value_as_int()
+        
+        resolution_model = res_combo.get_item_value_model()
+        
+        seq_value = self.model.sequence_model.get_value_as_bool()
+        single_value = self.model.single_model.get_value_as_bool()
+        
+        print(f"--- Export Path: {export_path} ---")
+        
+        if seq_value:
+            bool_value = True
+            print(f"--- Start Frame: {start_frame} ---")        
+            print(f"--- End Frame: {end_frame} ---")
+        elif single_value:
+            bool_value = False
+            print(f"--- Single Frame: {single_frame} ---")
+        else:
+            print("No render type selected, defaulting to Sequence")
+            return
+                
+        res_index = resolution_model.as_int
+        res_value = constants.RESOLUTIONS[res_index]
+        
+        print(f"--- Resolution: {res_value} ---")
+        
+        renderer = OmniCustomSequenceRenderer(model_name,
+                                                res_value, 
+                                                export_path, 
+                                                bool_value, 
+                                                start_frame, 
+                                                end_frame, 
+                                                single_frame)
+        
+        renderer.start_capture_extension_render()
+        #asyncio.ensure_future(renderer.start_capture_extension_render())
+        
+    def _render_selected_skus(self, res_combo):
+        get_selected_render = self._get_selected_items_render()
+        
+        for model in get_selected_render:
+            # select the payload model
+            self._get_selected_scope_string(model)
+            #self._render_sequence_v2(res_combo, model)
+            self._render_sequence(res_combo, model)
+            
+        #avviare il movie capture
+        #esportare un file json nella cartella di destinazione con la lista dei modelli da renderizzare
+        
+        #--> quando ha finito di renderizzare un modello, lo toglie dalla lista
+        
+    async def _render_queue(self, res_combo, selected_skus):
+        
+        export_path = self.model.type_string_model.get_value_as_string()
+        start_frame = self.model.startfr_model.get_value_as_int()
+        end_frame = self.model.endfr_model.get_value_as_int()
+        single_frame = self.model.singlefr_model.get_value_as_int()
+        resolution_model = res_combo.get_item_value_model()
+        seq_value = self.model.sequence_model.get_value_as_bool()
+        single_value = self.model.single_model.get_value_as_bool()
+        
+        if seq_value:
+            bool_value = True
+            print(f"--- Start Frame: {start_frame} ---")        
+            print(f"--- End Frame: {end_frame} ---")
+        elif single_value:
+            bool_value = False
+            print(f"--- Single Frame: {single_frame} ---")
+        else:
+            print("No render type selected, defaulting to Sequence")
+            return
+                
+        res_index = resolution_model.as_int
+        res_value = constants.RESOLUTIONS[res_index]
+            
+        try:
+            for model in selected_skus:
+                
+                self._get_selected_scope_string(model)
+                
+                print(f"Start render per modello {model}")
+                renderer = OmniCustomSequenceRenderer(model,
+                                                    res_value, 
+                                                    export_path, 
+                                                    bool_value, 
+                                                    start_frame, 
+                                                    end_frame, 
+                                                    single_frame)
+                
+                await renderer.start_capture_extension_render_async()
+                print(f"Finito render per modello {model}")
+                
+        except Exception as e:
+            print(f"Errore nel render della coda: {e}")
+            raise
+            
+    def _render_selected_skus_async(self, res_combo):
+        selected_skus = self._get_selected_items_render()
+        print(f"--- SKUs to render: {selected_skus} ---")
+        asyncio.ensure_future(self._render_queue(res_combo, selected_skus))
+        
+    def _get_selected_items_render(self):
+        """
+        Extract selected items from checkbox data.
+        
+        Iterates through all stored checkbox references and returns
+        the SKU and release data for items that are currently checked.
+        
+        Returns:
+            list: List of tuples containing (SKU, Release) for selected items
+                
+        Example:
+            >>> selected = self._get_selected_items_payloads()
+            >>> print(selected)
+            [('001', '261'), ('003', '262')]
+        """
+        selected_items = [
+            f"{data['model']}_{data['sku']}" 
+            for data in self.checkbox_render_data 
+            if data['checkbox'].model.get_value_as_bool()
+        ]
+        
+        print(f"Selected items: {selected_items}")
+        return selected_items
+        
+    def _build_scrolling_content_render(self):
+        self.checkbox_render_data = []
+        
+        payload_list = usd_tools.get_filtered_scopes()
+        
+        with ui.VStack(spacing=0):
+                for item in payload_list:
+                    model = item.split("_")[0]
+                    sku = item.split("_")[1]
+                    
+                    with ui.HStack():
+                        # Style name in green
+                        model_label = ui.Label(model,
+                                                height=16, 
+                                                style={"font_size":14, "color":cl("#28bfe9")}, 
+                                                alignment=ui.Alignment.CENTER)
+                        # SKU identifier
+                        sku_label = ui.Label(sku, 
+                                            height=16, 
+                                            style={"font_size":16}, 
+                                            alignment=ui.Alignment.CENTER)
                         
+                        ui.Spacer()
+                        # Selection checkbox
+                        checkbox = ui.CheckBox(width=30, 
+                                            height=16, 
+                                            style={"color":cl("#28bfe9"), "background_color": cl(0.35)})
+                        
+                        # Store checkbox reference and associated data
+                        self.checkbox_render_data.append({
+                            'checkbox': checkbox,
+                            'model': model,
+                            'sku': sku
+                        })    
+        
+    def _select_all_render_items(self):
+        """
+        Seleziona tutti i checkbox nella lista render.
+        
+        Itera attraverso tutti i checkbox memorizzati in checkbox_render_data
+        e imposta il loro valore su True.
+        """
+        for data in self.checkbox_render_data:
+            data['checkbox'].model.set_value(True)
+        
+        print(f"Selezionati {len(self.checkbox_render_data)} items")
+        
+    def _deselect_all_render_items(self):
+        
+        #Deseleziona tutti i checkbox nella lista render.
+        
+        for data in self.checkbox_render_data:
+            data['checkbox'].model.set_value(False)
+        
+        print("Tutti gli items deselezionati")
+        
+    def _toggle_all_render_items(self):
+        """
+        Inverte lo stato di tutti i checkbox.
+        Utile per un comportamento toggle del pulsante Select All.
+        """
+        # Verifica se almeno un item è selezionato
+        any_selected = any(
+            data['checkbox'].model.get_value_as_bool() 
+            for data in self.checkbox_render_data
+        )
+        
+        # Se qualcuno è selezionato, deseleziona tutto, altrimenti seleziona tutto
+        if any_selected:
+            self._deselect_all_render_items()
+        else:
+            self._select_all_render_items()  
+        
     # Filtering an cleaning functions -------------------------------------------------------------------
         
     def _filter_skus(self):
@@ -334,6 +592,7 @@ class TheliosLogic:
         to display only SKUs that match the filter criteria.
         This method is called when the "Filter Models" button is clicked.
         """
+        
         filter_value = self.model.int_filter_model.get_value_as_string().strip()
         
         if not filter_value:
@@ -362,19 +621,10 @@ class TheliosLogic:
         self.apply_filter = False
         self.show_labels = False
         self.checkbox_data = []
+        self.checkbox_render_data = []
         self.scroll_frame.clear()
         print("Cleared all data and filters")
-        
-    def _clear_all(self):
-        """Clear both the scroll frame and any applied filters."""
-        self.apply_filter = False
-        self.show_labels = False
-        self.checkbox_data = []
-        self.scroll_frame.clear()
-        print("Cleared all data and filters")
-        
-    # ---------------------------------------------------------------------------------------------------
-    
+            
     # Single template import functions ------------------------------------------------------------------
         
     def import_camera(self, brand_camera_combo):
@@ -398,30 +648,25 @@ class TheliosLogic:
         print("--- Import: Settings ---")
         render_settings.import_render_settings()
         
-    def on_import_click(self, 
-                        camera_checkbox, 
-                        lights_checkbox, 
-                        limbo_checkbox, 
-                        settings_checkbox,
-                        brand_camera_combo):
+    def on_import_click(self, context: OnImportContext):
                 
-        if camera_checkbox.model.get_value_as_bool():
-            self.import_camera(brand_camera_combo)
+        if context._camera_checkbox.model.get_value_as_bool():
+            self.import_camera(context._brand_camera_combo)
             
-        if lights_checkbox.model.get_value_as_bool():
+        if context._lights_checkbox.model.get_value_as_bool():
             self.import_lights()
             
-        if limbo_checkbox.model.get_value_as_bool():
+        if context._limbo_checkbox.model.get_value_as_bool():
             self.import_limbo()
             
-        if settings_checkbox.model.get_value_as_bool():
+        if context._settings_checkbox.model.get_value_as_bool():
             self.import_settings()
             
         if not any([
-            camera_checkbox.model.get_value_as_bool(),
-            lights_checkbox.model.get_value_as_bool(),
-            limbo_checkbox.model.get_value_as_bool(),
-            settings_checkbox.model.get_value_as_bool()
+            context._camera_checkbox.model.get_value_as_bool(),
+            context._lights_checkbox.model.get_value_as_bool(),
+            context._limbo_checkbox.model.get_value_as_bool(),
+            context._settings_checkbox.model.get_value_as_bool()
         ]):
             post_notification(
                 "No checkbox selected!",
@@ -432,29 +677,24 @@ class TheliosLogic:
             
         #Uncheck values
             
-        camera_checkbox.model.set_value(False),
-        lights_checkbox.model.set_value(False),
-        limbo_checkbox.model.set_value(False),
-        settings_checkbox.model.set_value(False)
+        context._camera_checkbox.model.set_value(False),
+        context._lights_checkbox.model.set_value(False),
+        context._limbo_checkbox.model.set_value(False),
+        context._settings_checkbox.model.set_value(False)
             
-    def on_import_click_all(self,
-                            camera_checkbox, 
-                            lights_checkbox, 
-                            limbo_checkbox, 
-                            settings_checkbox,
-                            brand_camera_combo):
+    def on_import_click_all(self, context: OnImportContext):
                 
         print("--- Import: All ---")
         
-        self.import_camera(brand_camera_combo)
+        self.import_camera(context._brand_camera_combo)
         self.import_lights()
         self.import_limbo()
         self.import_settings()
         
-        camera_checkbox.model.set_value(False),
-        lights_checkbox.model.set_value(False),
-        limbo_checkbox.model.set_value(False),
-        settings_checkbox.model.set_value(False)
+        context._camera_checkbox.model.set_value(False),
+        context._lights_checkbox.model.set_value(False),
+        context._limbo_checkbox.model.set_value(False),
+        context._settings_checkbox.model.set_value(False)
         
         post_notification(
             "Import completed!",
@@ -462,3 +702,63 @@ class TheliosLogic:
             status=NotificationStatus.INFO
         )
         print("Import completed")
+        
+    # View functions -------------------------------------------------------------------------------------
+    
+    def clear_and_populate_combo(self, combobox_model):
+        
+        payload_list = usd_tools.get_filtered_scopes()
+        
+        for item in combobox_model.get_item_children():
+            combobox_model.remove_item(item)
+            
+        for payload in payload_list:
+            combobox_model.append_child_item(None, ui.SimpleStringModel(payload))
+            
+        if payload_list:
+            combobox_model.get_item_value_model().set_value(0)
+        else:
+            combobox_model.get_item_value_model().set_value(-1)  # nessuna selezione
+            
+        self._get_payloads_lenght()
+                    
+    def _get_selected_scope(self, combobox_model):
+        payload_list = usd_tools.get_filtered_scopes()
+        
+        combo_string = combobox_model.get_item_value_model()
+        combo_string_index = combo_string.as_int
+        combo_string_value = payload_list[combo_string_index]
+        
+        print(f" ----------- Selected scope: {combo_string_value}")
+        
+        scopes_to_keep = constants.SCOPES_TO_KEEP
+        print(f"Selected scope: {combo_string}")
+        usd_tools.hide_all_scopes_except(combo_string_value, scopes_to_keep)
+        
+    def _get_selected_scope_string(self, model_string):
+        
+        print(f" ----------- Selected scope: {model_string}")
+        
+        scopes_to_keep = constants.SCOPES_TO_KEEP
+        usd_tools.hide_all_scopes_except(model_string, scopes_to_keep)
+        
+    def _build_view_slider(self):
+        payload_list = usd_tools.get_filtered_scopes()
+        len_payloads = len(payload_list)
+        self.start_slider = ui.IntSlider(min=1, max=len_payloads, step=1, style={"margin":3}).model
+        return self.start_slider
+    
+    def _on_slider_changed(self, value):
+        print(f"Slider value: {value}")
+        payload_list = usd_tools.get_filtered_scopes()
+        
+        current_model_selected = payload_list[value.as_int - 1]
+        self._get_selected_scope_string(current_model_selected)
+        
+        self.model.slider_view_model.set_value(str(current_model_selected))
+            
+    def _get_payloads_lenght(self):
+        payload_list = usd_tools.get_filtered_scopes()
+        return len(payload_list)
+        
+        #need some fixes here

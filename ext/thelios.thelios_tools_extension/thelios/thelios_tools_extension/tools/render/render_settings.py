@@ -1,6 +1,4 @@
 import carb.settings
-from omni.kit.viewport.utility import get_active_viewport_window
-
 from ... import constants
 
 def import_render_settings():
