@@ -36,6 +36,9 @@ class TheliosLogic:
         self.brand_combo = None
         self.type_combo = None
         self.release_field = None
+        
+        self.start_slider = None
+        self.current_payloads = []
         #self.resolution_combo = None
         
         self.templates_dir = constants.TEMPLATES_PATH
@@ -704,7 +707,7 @@ class TheliosLogic:
         print("Import completed")
         
     # View functions -------------------------------------------------------------------------------------
-    
+
     def clear_and_populate_combo(self, combobox_model):
         
         payload_list = usd_tools.get_filtered_scopes()
@@ -745,7 +748,7 @@ class TheliosLogic:
     def _build_view_slider(self):
         payload_list = usd_tools.get_filtered_scopes()
         len_payloads = len(payload_list)
-        self.start_slider = ui.IntSlider(min=1, max=len_payloads, step=1, style={"margin":3}).model
+        self.start_slider = ui.IntSlider(value=1,min=1, max=len_payloads, step=1, style={"margin":3}).model
         return self.start_slider
     
     def _on_slider_changed(self, value):
@@ -758,6 +761,10 @@ class TheliosLogic:
         self.model.slider_view_model.set_value(str(current_model_selected))
             
     def _get_payloads_lenght(self):
+        payload_list = usd_tools.get_filtered_scopes()
+        return len(payload_list)
+        
+        #need some fixes here
         payload_list = usd_tools.get_filtered_scopes()
         return len(payload_list)
         

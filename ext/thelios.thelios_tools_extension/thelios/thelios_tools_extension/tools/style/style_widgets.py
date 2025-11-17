@@ -18,7 +18,7 @@ def window_style():
         "Button:Label": {"color": 0xFFCCCCCC},
         "Button:hovered": {"background_color": 0xFF9E9E9E},
         "Button:pressed": {"background_color": 0xC22A8778},
-        
+        "Button.Image": {"size": (8, 8)},  # Dimensioni dell'icona
         #Clear buttons style
         "Button::clear_filter:hovered": {"background_color": cl("#a94545")},
         "Button::clear_scrolling:hovered": {"background_color": cl("#a94545")},
@@ -134,3 +134,26 @@ def collapbsable_style():
     }
     
     return CollapsableFrame_style
+
+# Spawnable widget styles ----------------------------------------------
+
+string_field_style = {
+            "margin":3, 
+            "background_color": 0xFF23211F,
+            "border_radius": 2,
+            "padding": 3,
+            "margin": 3
+        }
+        
+button_style = {
+    "Button.Image": {
+        "size": (20, 20)
+    },  
+    "Button": {
+        "background_color": 0xFF292929, 
+        "margin": 3, 
+        "padding": 6, 
+        "border_radius": 2,
+        "height": 10
+    }
+}

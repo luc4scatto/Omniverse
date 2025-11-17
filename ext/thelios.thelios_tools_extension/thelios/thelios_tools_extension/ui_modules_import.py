@@ -1,12 +1,17 @@
 import omni.ui as ui
+import omni.ext
 from omni.ui import color as cl
 import omni.usd
 from omni.kit.window.filepicker import FilePickerDialog
+
+from pathlib import Path
 
 from .tools.utils import template_tools
 from . import constants
 from .models import TheliosWindowModel
 from .logic import TheliosLogic, OnImportContext
+from .tools.style import style_widgets
+from .tools.utils import usd_tools
 
 class ImportTemplatePanel:
     def __init__(self):
@@ -147,7 +152,7 @@ class CustomModelImportPanel:
                 with ui.HStack(spacing=10, alignment=ui.Alignment.V_CENTER):
                     ui.Label("Model", name="label", width=constants.LABEL_PADDING)
                     self.model_field = ui.StringField(self.model.model_model, name="model", height=10, style={"margin":3})
-                    self.import_custom_button = ui.Button("Select Model", clicked_fn=self.logic._import_sel_skus_payloads, name="select_model")
+                    self.import_custom_button = ui.Button("Search Model", clicked_fn=self.logic._import_sel_skus_payloads, name="select_model")
                     
                 with ui.ZStack():
                     ui.Rectangle(style={"background_color": cl(0.25), 
@@ -172,7 +177,7 @@ class CustomModelImportPanel:
                         ui.Label("RELEASE", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
                         ui.Label("IMPORT", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
                     
-                    ui.Spacer(height=4)
+                    ui.Spacer(height=8)
                     
                     # ScrollingFrame with internal Frame for content
                     
@@ -361,42 +366,99 @@ class RenderSettingsPanel:
                     
                 #self.render_btn = ui.Button("Render", clicked_fn=lambda combobox = self.resolution_combo: self.logic._render_selected_skus(combobox), name="render_sequence")
                 self.render_render_select_btn = ui.Button("Render Selected", clicked_fn= lambda combobox = self.resolution_combo: self.logic._render_selected_skus_async(combobox), name="render_sequence")
+
 class ViewPanel:
     def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
         self.model = model
         self.logic = logic
         
-        self.start_slider_widget = None  # widget slider
-        self.start_slider = None         # modello slider
-        self.slider_parent_layout = None # layout contenitore slider
+        self.payloads_combo = None
+        self.refresh_btn = None
+        self.select_btn = None
+        
+        self.slider_container = None  # contenitore dinamico per slider, bottoni e stringfield
+        self.current_slider_value = 1
         
     def build(self, style):
-        with ui.CollapsableFrame(title="View", style=style, collapsed=False):
+        with ui.CollapsableFrame(title="View", style=style, collapsed=constants.VIEW_UI_VISIBILITY):
             with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
-                    
                 with ui.HStack(spacing=5):
                     self.payloads_combo = ui.ComboBox(0, "", height=10, name="combo_payloads", style={"margin":3}).model
-                    self.refresh_btn = ui.Button("Refresh", clicked_fn= lambda combobox = self.payloads_combo: self.logic.clear_and_populate_combo(combobox), name="refresh_button")
-                    
-                    self.select_btn = ui.Button("Select", clicked_fn=lambda combobox = self.payloads_combo: self.logic._get_selected_scope(combobox), name="select_button")
-                    
-                ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
-                    
-                with ui.HStack(spacing=5) as hstack:
-                    
-                    self.slider_parent_layout = hstack
-                    self.back_frame_btn = ui.Button("<--", width=50, name="back_fr_button")
-                    
-                    len_payloads = self.logic._get_payloads_lenght()
-                    print(f"Length payload list: {len_payloads}")
-                    #self.start_slider = ui.IntSlider(min=1, max=len_payloads, step=1, style={"margin":3}).model
-                    start_slider = self.logic._build_view_slider()
-                    self.start_slider_sub = start_slider.subscribe_value_changed_fn(self.logic._on_slider_changed )
-                    #self.start_slider.model = self.model.slider_view_model
-                    
-                        
-                    self.fwd_frame_btn = ui.Button("-->", width=50, name="fwd_fr_button")
-                    
-                self.selected_model_field = ui.StringField(self.model.slider_view_model, name="sel_model", style={"margin":3})
+                    self.refresh_btn = ui.Button("Refresh", clicked_fn=self._refresh_ui, name="refresh_button")
+                    self.select_btn = ui.Button("Select", clicked_fn=lambda combobox=self.payloads_combo: self.logic._get_selected_scope(combobox), name="select_button")
                 
+                ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                
+                self.slider_container = ui.VStack()
+                    
+    def _build_dynamic_slider_ui(self):
+        
+        string_style = style_widgets.string_field_style
+        button_style = style_widgets.button_style
+        
+        self.slider_container.clear()
+        
+        # Riga con bottone indietro, slider, bottone avanti
+        with self.slider_container:
+            with ui.HStack(spacing=5):
+                self.back_frame_btn = ui.Button(width=50, 
+                                                name="back_fr_button",
+                                                style=button_style, 
+                                                clicked_fn=self._backward_frame,
+                                                image_url=str(constants.BACK_FRAME_ICON))
+                
+                len_payloads = self.logic._get_payloads_lenght()
+                self.start_slider_widget = ui.IntSlider(min=1, max=len_payloads, step=1,
+                                                        value=self.current_slider_value, style={"margin":3})
+                self.start_slider = self.start_slider_widget.model
+                self.start_slider_sub = self.start_slider.subscribe_value_changed_fn(self._on_slider_changed)
+                
+                self.fwd_frame_btn = ui.Button(width=50, 
+                                            name="fwd_fr_button", 
+                                            style=button_style,
+                                            clicked_fn=self._forward_frame,
+                                            image_url=str(constants.FWD_FRAME_ICON))
+                
+            ui.Spacer(height=4)
+            # Riga sotto SOLO per il StringField — sarà “a capo”, cioè su una riga tutta sua
+            with ui.VStack():
+                self.selected_model_field = ui.StringField(
+                    self.model.slider_view_model, name="sel_model", style=string_style
+            )
     
+    def _forward_frame(self):
+        payload_list = usd_tools.get_filtered_scopes()
+        current_value = self.start_slider.get_value_as_int()
+        new_value = current_value + 1
+        max_val = len(payload_list)
+        
+        if new_value > max_val:
+            new_value = max_val
+            
+        self.start_slider.set_value(new_value)
+        self.current_slider_value = new_value
+        
+    def _backward_frame(self):
+        current_value = self.start_slider.get_value_as_int()
+        new_value = current_value - 1
+        
+        if new_value <= 1:
+            new_value = 1
+            
+        self.start_slider.set_value(new_value)
+        self.current_slider_value = new_value
+    
+    def _refresh_ui(self):
+        self.logic.clear_and_populate_combo(self.payloads_combo)
+        self._build_dynamic_slider_ui()
+        
+    def _on_slider_changed(self, value):
+        v = value.as_int
+        if v < 1:
+            print(f"Warning: slider value < 1: {v}, clamping to 1")
+            v = 1
+        payload_list = usd_tools.get_filtered_scopes()
+        current_model_selected = payload_list[v - 1]
+        # Qui chiami la funzione dentro logic, non dentro ViewPanel
+        self.logic._get_selected_scope_string(current_model_selected)
+        self.model.slider_view_model.set_value(str(current_model_selected))

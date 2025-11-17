@@ -53,3 +53,8 @@ dependencies = [
 
 args = [
 ]
+
+[asset]
+folders = [
+    "thelios/thelios_tools_extension/tools/style/icons"
+]

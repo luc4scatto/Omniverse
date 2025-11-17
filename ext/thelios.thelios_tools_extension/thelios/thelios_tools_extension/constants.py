@@ -31,15 +31,17 @@ GENRES = [
 
 BLOB_PATH = r"H:\\Prototyping_PD\\Rendering\\USDProject\\USD\\DIOR"
 TEMPLATES_PATH = Path(__file__).parent.joinpath("tools","templates")
+ICONS_PATH = Path(__file__).parent.joinpath("tools","style","icons")
 
 #UI Visibility ------------------------------------------------
 
 #When collapsed is True, the UI module will be hidden by default
-IMPORT_TEMPLATE_UI_VISIBILITY = False
+IMPORT_TEMPLATE_UI_VISIBILITY = True
 IMPORT_ALL_COLLECTION_UI_VISIBILITY = True
-CUSTOM_IMPORT_TEMPLATE_UI_VISIBILITY = False
+CUSTOM_IMPORT_TEMPLATE_UI_VISIBILITY = True
 CUSTOM_MODEL_IMPORT_UI_VISIBILITY = True
 RENDER_UI_VISIBILITY = True
+VIEW_UI_VISIBILITY =False
 
 #Styles ------------------------------------------------------
 
@@ -106,3 +108,8 @@ SCOPES_TO_KEEP = [  "Models",
 #-------------------------------------------------------------
 
 TEMP_NAME = "CD40153U_32P"
+
+#Icons -------------------------------------------------------
+
+FWD_FRAME_ICON = ICONS_PATH.joinpath("next_fr.png")
+BACK_FRAME_ICON = ICONS_PATH.joinpath("prev_fr.png")
