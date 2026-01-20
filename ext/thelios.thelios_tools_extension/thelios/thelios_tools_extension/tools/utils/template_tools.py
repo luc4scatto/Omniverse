@@ -95,35 +95,36 @@ def _default_prim_set(stage: Usd.Stage):
     setup_path = f"{world_path}/Setup"
     setup_scope = get_or_create_scope(_stage, setup_path)
 
-def _import_camera(stage: Usd.Stage, brand_camera_model: str, combo_elements: list, templates_dir: str):
+def _import_camera(stage: Usd.Stage, brand_camera_model: str, combo_elements: list):
     _default_prim_set(stage)
     
     brand_camera_index = brand_camera_model.as_int
     brand_camera_value = combo_elements[brand_camera_index]
     brand_camera = brand_camera_value.replace(" ", "_")
     
-    camera_payload = f"{templates_dir}\\ABC\\camera\\{brand_camera}_cam.usd"
+    #camera_payload = f"{templates_dir}\\ABC\\camera\\{brand_camera}_cam.usd"
+    camera_payload = f"{constants.BLOB_CAMERAS_PATH}\\{brand_camera}_cam.usd"
     print(camera_payload)
     
     camera_xform = get_or_create_xform(stage, camera_target)
     usd_tools.import_payload(camera_payload, camera_target)
     
-def _import_lights(stage: Usd.Stage, templates_dir: str):
+def _import_lights(stage: Usd.Stage):
     _default_prim_set(stage)
     
-    light_payload = f"{templates_dir}/ABC/lights.usd"
+    light_payload = f"{constants.BLOB_USD_TEMPLATE_PATH}\\{constants.TEMPL_LIGHTS}"
     
     lights_xform = get_or_create_scope(stage, light_target)
     usd_tools.import_payload(light_payload, light_target)
     
-def _import_limbo(stage: Usd.Stage, templates_dir: str):
+def _import_limbo(stage: Usd.Stage):
     _default_prim_set(stage)
     limbo_xform = get_or_create_xform(stage, limbo_target)
-    limbo_payload = f"{templates_dir}/ABC/limbo.usd"
+    limbo_payload = f"{constants.BLOB_USD_TEMPLATE_PATH}\\{constants.TEMPL_LIMBO}"
     
     usd_tools.import_payload(limbo_payload, limbo_target)
 
-def _import_settings(stage: Usd.Stage, templates_dir: str):
+def _import_settings(stage: Usd.Stage):
     #_default_prim_set(stage)
-    print(f"Importing Settings... {templates_dir}")
+    print(f"Importing Settings...")
     #add_render_settings_sublayer(settings_path, insert_on_top=True)

@@ -4,6 +4,8 @@ from omni.ui import color as cl
 import omni.usd
 from omni.kit.window.filepicker import FilePickerDialog
 
+from omni.kit.widget.searchable_combobox import build_searchable_combo_widget, ComboBoxListDelegate
+
 from pathlib import Path
 
 from .tools.utils import template_tools
@@ -102,7 +104,7 @@ class CustomTemplateImportPanel:
                         ui.Label("Lights", name="label")
                     
                     ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})    
-                    
+                    """
                     with ui.HStack():
                         limbo_checkbox = ui.CheckBox(width=30, 
                                             height=16, 
@@ -110,7 +112,7 @@ class CustomTemplateImportPanel:
                         ui.Label("Limbo", name="label")
                     
                     ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})    
-                    
+                    """
                     with ui.HStack():
                         settings_checkbox = ui.CheckBox(width=30, 
                                             height=16, 
@@ -120,7 +122,7 @@ class CustomTemplateImportPanel:
                     def on_import_click():
                         context = OnImportContext(_camera_checkbox = camera_checkbox, 
                                                     _lights_checkbox = lights_checkbox, 
-                                                    _limbo_checkbox = limbo_checkbox, 
+                                                    #_limbo_checkbox = limbo_checkbox, 
                                                     _settings_checkbox = settings_checkbox,
                                                     _brand_camera_combo = self.brand_camera_combo)
                         self.logic.on_import_click(context)
@@ -128,7 +130,7 @@ class CustomTemplateImportPanel:
                     def on_import_click_all():  
                         context = OnImportContext(_camera_checkbox = camera_checkbox, 
                                                     _lights_checkbox = lights_checkbox, 
-                                                    _limbo_checkbox = limbo_checkbox, 
+                                                    #_limbo_checkbox = limbo_checkbox, 
                                                     _settings_checkbox = settings_checkbox,
                                                     _brand_camera_combo = self.brand_camera_combo)
                         self.logic.on_import_click_all(context)
@@ -152,7 +154,7 @@ class CustomModelImportPanel:
                 with ui.HStack(spacing=10, alignment=ui.Alignment.V_CENTER):
                     ui.Label("Model", name="label", width=constants.LABEL_PADDING)
                     self.model_field = ui.StringField(self.model.model_model, name="model", height=10, style={"margin":3})
-                    self.import_custom_button = ui.Button("Search Model", clicked_fn=self.logic._import_sel_skus_payloads, name="select_model")
+                    self.import_custom_button = ui.Button("Select Model", clicked_fn=self.logic._import_sel_skus_custom_model, name="select_model")
                     
                 with ui.ZStack():
                     ui.Rectangle(style={"background_color": cl(0.25), 
@@ -177,14 +179,14 @@ class CustomModelImportPanel:
                         ui.Label("RELEASE", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
                         ui.Label("IMPORT", style={"font_weight": "bold", "font_size": 16}, alignment=ui.Alignment.CENTER)
                     
-                    ui.Spacer(height=8)
+                    ui.Spacer(height=4)
                     
                     # ScrollingFrame with internal Frame for content
                     
-                    self.scroll_frame_payloads = self.logic.create_scrolling_frame()
+                    self.scroll_frame_custom_model = self.logic.create_scrolling_frame_custom_model()
                     
                     # Set build function for dynamic content
-                    self.scroll_frame_payloads.set_build_fn(self.logic._build_scrolling_content_payloads)
+                    self.scroll_frame_custom_model.set_build_fn(self.logic._build_scrolling_content_custom_model)
                     
                     ui.Spacer(height=16)
                     with ui.HStack():
@@ -200,17 +202,6 @@ class CustomModelImportPanel:
                                                                 name = "clear_scrolling")
                     
                     ui.Spacer(height=8)
-                    
-    def _import_sel_skus_payloads(self):
-            """
-            Trigger the display of SKU selection interface.
-            
-            Sets the flag to show the SKU table labels and triggers a rebuild
-            of the scrolling frame to display the available SKUs for selection.
-            This method is called when the "Select Model" button is clicked.
-            """
-            self.show_labels = True
-            self.scroll_frame_payloads.rebuild()  # Update ScrollingFrame content
             
 class ImportAllCollectionPanel:
     def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
@@ -254,7 +245,7 @@ class RenderSettingsPanel:
         def on_folder_selected(dialog, filename, dirname):
             # Solo cartella selezionata
             dialog.hide()
-            export_path_field.model.set_value(dirname)
+            self.export_path_field.model.set_value(dirname)
         
         def on_folder_icon_click():
             # Apertura FilePicker solo per cartelle
@@ -282,7 +273,7 @@ class RenderSettingsPanel:
                     
                     # ScrollingFrame with internal Frame for content
                     
-                    self.scroll_frame_render = self.logic.create_scrolling_frame()
+                    self.scroll_frame_render = self.logic.create_scrolling_frame_render()
                     
                     # Set build function for dynamic content
                     def create_scrolling_content_render():
@@ -303,7 +294,7 @@ class RenderSettingsPanel:
                     
                     ui.Label("Exp. Path", name="label", width=constants.LABEL_PADDING)
                     
-                    export_path_field = ui.StringField(self.model.type_string_model, name="export_path", height=10)
+                    self.export_path_field = ui.StringField(self.model.type_string_model, name="export_path", height=10)
                     
                     ui.Button(name="Scegli cartella", 
                             image_url="resources/icons/folder.png", 
@@ -337,7 +328,6 @@ class RenderSettingsPanel:
                     
                     sequence_checkbox.model.add_value_changed_fn(lambda a, b=single_checkbox: self.logic.like_radio(a, b))
                     single_checkbox.model.add_value_changed_fn(lambda a, b=sequence_checkbox: self.logic.like_radio(a, b))
-                    
                     
                 ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
                 
@@ -387,10 +377,12 @@ class ViewPanel:
                     self.refresh_btn = ui.Button("Refresh", clicked_fn=self._refresh_ui, name="refresh_button")
                     self.select_btn = ui.Button("Select", clicked_fn=lambda combobox=self.payloads_combo: self.logic._get_selected_scope(combobox), name="select_button")
                 
+                #searchable_combo_box = self.create_searchable_combo_box()
+                
                 ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
                 
                 self.slider_container = ui.VStack()
-                    
+        
     def _build_dynamic_slider_ui(self):
         
         string_style = style_widgets.string_field_style
@@ -462,3 +454,93 @@ class ViewPanel:
         # Qui chiami la funzione dentro logic, non dentro ViewPanel
         self.logic._get_selected_scope_string(current_model_selected)
         self.model.slider_view_model.set_value(str(current_model_selected))
+        
+    def create_searchable_combo_box(self):
+        # Define a callback function to be called when an item is selected
+        def on_combo_click_fn(model):
+            selected_item = model.get_value_as_string()
+            print(f"Selected item: {selected_item}")
+            
+        # Define the list of items for the combo box
+        
+        if usd_tools.get_filtered_scopes() is None:
+            item_list = ["-"]
+        else:
+            item_list = usd_tools.get_filtered_scopes()
+            
+        # Create the searchable combo box with the specified items and callback
+        searchable_combo_widget = build_searchable_combo_widget(
+            combo_list=item_list,
+            combo_index=-1,  # Start with no item selected
+            combo_click_fn=on_combo_click_fn,
+            widget_height=18,
+            default_value="Select an item",  # Placeholder text when no item is selected
+            window_id="SearchableComboBoxWindow",
+            delegate=ComboBoxListDelegate()  # Use the default delegate for item rendering
+        )
+        
+        # Return the created widget
+        return searchable_combo_widget
+    
+class MaterialsPanel:
+    def __init__(self, model: TheliosWindowModel, logic: TheliosLogic):
+        self.model = model
+        self.logic = logic
+        
+        self._tree = constants.MAT_DICT
+        
+    def build(self, style):
+        with ui.CollapsableFrame(title="Materials ", style=style, collapsed=constants.MATERIALS_UI_VISIBILITY):
+            with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
+                
+                # Release input field
+                with ui.HStack(spacing=10):
+                    ui.Label("Category", name="label", width=constants.LABEL_PADDING)
+                    self._cat_combo = ui.ComboBox(0, "", height=10, name="combo_cat", style={"margin":3}).model
+                    ui.Label("Sub-Category", name="label", width=constants.LABEL_PADDING)
+                    self.sub_cat_combo = ui.ComboBox(0, "", height=10, name="combo_sub_cat", style={"margin":3}).model
+                    
+                    self.logic._fill_combo(self._cat_combo, list(self._tree.keys()))
+                    # Callback quando cambia la selezione del primo
+                    self._cat_combo.add_item_changed_fn(self._on_macro_changed)
+                    
+                # Brand selection dropdown
+                with ui.HStack(spacing=10):
+                    ui.Label("Code", name="label", width=constants.LABEL_PADDING)
+                    self.model_field = ui.StringField(self.model.model_model, name="model", height=10, style={"margin":3})
+                    
+                    ui.Label("Name", name="label", width=constants.LABEL_PADDING)
+                    self.model_field = ui.StringField(self.model.model_model, name="model", height=10, style={"margin":3})
+                    #self._create_control_state()
+                    
+                # Type/Genre selection dropdown
+                with ui.HStack(spacing=10):
+                    ui.Label("Textures", name="label", width=constants.LABEL_PADDING)
+                    
+                    self.export_path_field = ui.StringField(self.model.type_string_model, name="export_path", height=10)
+                    ui.Button(name="Scegli cartella", 
+                            image_url="resources/icons/folder.png", 
+                            alignemnt=ui.Alignment.TOP,
+                            width=28,
+                            height=28,
+                            clicked_fn=lambda: print("Select folder clicked"),
+                            style={"margin":3, "background_color": cl(0)})
+                    
+                # Create material buttton
+                self.create_mtl_btn = ui.Button("Create Material", clicked_fn=self.logic._get_plm_data, name="import_collection")
+                ui.Spacer(height=0)
+                
+    
+    
+    def _on_macro_changed(self, model, item):
+        selected = self.logic._get_selected_text(model)
+        if not selected:
+            self.logic._fill_combo(self.sub_cat_combo, [])
+            return
+        
+        sub_dict = self._tree.get(selected, {})
+        # Chiavi del livello successivo
+        sub_items = list(sub_dict.keys())
+        self.logic._fill_combo(self.sub_cat_combo, sub_items)
+        
+        return sub_items

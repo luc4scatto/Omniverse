@@ -5,7 +5,7 @@ import carb
 
 #from .utils import load_config
 from .tools.style import style_widgets
-from .ui_modules_import import ImportTemplatePanel, CustomModelImportPanel, CustomTemplateImportPanel, ImportAllCollectionPanel, RenderSettingsPanel, ViewPanel
+from .ui_modules_import import ImportTemplatePanel, CustomModelImportPanel, CustomTemplateImportPanel, ImportAllCollectionPanel, RenderSettingsPanel, ViewPanel, MaterialsPanel
 from .models import TheliosWindowModel
 from .logic import TheliosLogic
 
@@ -47,10 +47,14 @@ class TheliosToolsWindow:
                 )
                 with self._window_Frame:
                     with ui.VStack(height=0, name="main_v_stack", spacing=8):
-                        
+                        """
                         #Import template panel class
                         self.import_template_panel = ImportTemplatePanel()
                         self.import_template_panel.build(CollapsableFrame_style)
+                        """
+                        #Import all collection panel class
+                        self.import_all_collection_panel = ImportAllCollectionPanel(self.model, self.logic)
+                        self.import_all_collection_panel.build(CollapsableFrame_style)
                         
                         #Import custom template panel class
                         self.custom_template_import_panel = CustomTemplateImportPanel(self.model, self.logic)
@@ -60,15 +64,16 @@ class TheliosToolsWindow:
                         self.custom_model_import_panel = CustomModelImportPanel(self.model, self.logic)
                         self.custom_model_import_panel.build(CollapsableFrame_style)
                         
-                        #Import all collection panel class
-                        self.import_all_collection_panel = ImportAllCollectionPanel(self.model, self.logic)
-                        self.import_all_collection_panel.build(CollapsableFrame_style)
-                        
                         #Import render settings panel class
                         self.render_panel = RenderSettingsPanel(self.model, self.logic)
                         self.render_panel.build(CollapsableFrame_style)
                         
+                        #Import view settings panel class
                         self.view_panel = ViewPanel(self.model, self.logic)
                         self.view_panel.build(CollapsableFrame_style)
+                        
+                        #Import material panel class
+                        self.material_panel = MaterialsPanel(self.model, self.logic)
+                        self.material_panel.build(CollapsableFrame_style)
                         
         return self._editor_window

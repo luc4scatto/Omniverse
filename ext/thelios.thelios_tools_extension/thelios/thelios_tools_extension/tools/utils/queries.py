@@ -1,11 +1,12 @@
 import pyodbc
+from ... import constants
 
 def pop_combo_brands(db_key):
     
     conn = pyodbc.connect(db_key)
     cur = conn.cursor()
     
-    query_rel_sku = f"SELECT DISTINCT [Brand] FROM [ReportDB].[dbo].[render_style_sku]"
+    query_rel_sku = f"SELECT DISTINCT [Brand] FROM {constants.RENDER_STYLE_TABLE} "
     cur.execute(query_rel_sku)
     res = cur.fetchall() 
     conn.close()
@@ -37,7 +38,7 @@ def get_plm_data(db_key, season, brand, category):
     
     #Query to get all models, skus for the selected season, brand, category, gender
     query_rel_sku = f"""SELECT [Style], [Colorway] 
-                        FROM [ReportDB].[dbo].[render_style_sku] 
+                        FROM {constants.RENDER_STYLE_TABLE} 
                         WHERE [Season] = '{season}'
                             AND [Brand] = '{brand}' 
                             AND [Category] = '{new_category}' 
@@ -73,7 +74,7 @@ def get_sku_model_plm(db_key, model):
     cur = conn.cursor()
     
     query_rel_sku = f"""SELECT [Colorway], [Season], [Style_Name] 
-                        FROM [ReportDB].[dbo].[render_style_sku] 
+                        FROM {constants.RENDER_STYLE_TABLE} 
                         WHERE [Style] = '{model}'
                     """
     cur.execute(query_rel_sku)

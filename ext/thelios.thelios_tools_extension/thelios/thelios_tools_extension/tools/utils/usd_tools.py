@@ -305,13 +305,7 @@ def import_payload(payload_usd_path: str, target_path: str) -> None:
             payload_asset_path=payload_usd_path
         )
         
-        # Success notification
-        post_notification(
-            "Payload successfully imported",
-            duration=5,
-            status=NotificationStatus.INFO
-        )
-        print("Import completed")
+        print("Payload import completed successfully.")
         
     except Exception as e:
         # Error notification during import

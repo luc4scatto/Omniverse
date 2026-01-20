@@ -6,7 +6,79 @@ from omni.ui import color as cl
 
 DB_KEY = "Driver={SQL Server}; Server=10.189.24.40; uid=rendering_dep; pwd=251_ee5FJK?58fde723c8cf9c!; Trusted_Connection=No;"
 
-#Models --------------------------------------------------------
+RENDER_STYLE_TABLE = "[ReportDB].[dbo].[vw_render_style_sku]"
+
+#Brand Dictionary -----------------------------------------------
+
+BRANDS_DICT = { "CD": "Dior Femme",
+                "DM": "Dior Homme",
+                "BP": "Barton Perreira",
+                "BV": "Bulgari",
+                "CL": "Celine",
+                "FE": "Fendi",
+                "GV": "Givenchy",
+                "TH": "Tag Heuer",
+                "VU": "Vuarnet",
+                "LW": "Loewe",
+                "KZ": "Kenzo",
+                "LV": "Louis Vuitton"
+                }
+
+GENRES = [
+            "Optical - Man",
+            "Optical - Woman",
+            "Sun - Man",
+            "Sun - Woman",
+            "All Man",
+            "All Woman"
+        ]
+
+#Materials Dictionary -------------------------------------------
+
+MAT_DICT = {
+    "Utility": {
+        "ID": {},
+        "HDR": {},
+        "Common_Mats": {},
+    },
+    "Acetate": {
+        "Havana": {},
+        "Opaline": {},
+        "Solid": {},
+        "Transparent": {},
+    },
+    "Injected": {
+        "Solid": {},
+        "Trasparent": {},
+        "Opaline": {},
+        "Havana": {},
+        "Rubber": {},
+    },
+    "Metals": {
+        "Brushed": {},
+        "Sand_Blasted": {},
+        "Shiny": {},
+        "Matte": {},
+        "Tumbled": {},
+        "Satin": {},
+    },
+    "Lens": {
+        "Gradient": {},
+        "Solid": {},
+    },
+    "Fabric": {},
+    "Varnish": {},
+    "Gems": {
+        "Strass": {},
+        "Stones": {},
+    },
+    "Special": {
+        "Carbon_Fiber": {},
+        "Leather": {},
+        "Cork": {}
+    },
+}
+#Models init values ---------------------------------------------
 
 DEFAULT_RELEASE = 262
 START_FRAME = 1
@@ -18,18 +90,19 @@ SLIDER_VIEW = 1
 SEQUENCE = True
 SINGLE_FRAME = False
 
-GENRES = [
-            "Optical - Man",
-            "Optical - Woman",
-            "Sun - Man",
-            "Sun - Woman",
-            "All Man",
-            "All Woman"
-        ]
-
 #Paths --------------------------------------------------------
 
-BLOB_PATH = r"H:\\Prototyping_PD\\Rendering\\USDProject\\USD\\DIOR"
+#BLOB paths
+BLOB_PATH = r"U:\01_USD"
+BLOB_USD_PATH = r"U:\01_USD"
+BLOB_USD_TEMPLATE_PATH = "U:\\02_TOOLS\\01_Template"
+BLOB_CAMERAS_PATH = f"{BLOB_USD_TEMPLATE_PATH}\\cameras"
+
+#USD templates filename
+TEMPL_LIGHTS = "lights.usd"
+TEMPL_LIMBO = "limbo.usd"
+
+#BLOB_PATH = r"H:\\Prototyping_PD\\Rendering\\USDProject\\USD\\DIOR"
 TEMPLATES_PATH = Path(__file__).parent.joinpath("tools","templates")
 ICONS_PATH = Path(__file__).parent.joinpath("tools","style","icons")
 
@@ -41,7 +114,8 @@ IMPORT_ALL_COLLECTION_UI_VISIBILITY = True
 CUSTOM_IMPORT_TEMPLATE_UI_VISIBILITY = True
 CUSTOM_MODEL_IMPORT_UI_VISIBILITY = True
 RENDER_UI_VISIBILITY = True
-VIEW_UI_VISIBILITY =False
+VIEW_UI_VISIBILITY = True
+MATERIALS_UI_VISIBILITY = False
 
 #Styles ------------------------------------------------------
 
@@ -104,10 +178,6 @@ SCOPES_TO_KEEP = [  "Models",
                     "Lights", 
                     "Cameras"
                 ]
-
-#-------------------------------------------------------------
-
-TEMP_NAME = "CD40153U_32P"
 
 #Icons -------------------------------------------------------
 

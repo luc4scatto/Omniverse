@@ -10,8 +10,7 @@ from . import constants
 from .models import TheliosWindowModel
 
 from .tools.utils import queries as qu #plm_query, brand_query
-from .tools.utils import usd_tools
-from .tools.utils import template_tools
+from .tools.utils import usd_tools, template_tools, alerts
 from .tools.render.custom_render_sequence import OmniCustomSequenceRenderer
 from .tools.render import render_settings
 
@@ -19,7 +18,7 @@ from .tools.render import render_settings
 class OnImportContext:
     _camera_checkbox: bool
     _lights_checkbox: bool
-    _limbo_checkbox: bool
+    #_limbo_checkbox: bool
     _settings_checkbox: bool
     _brand_camera_combo: str
     
@@ -36,6 +35,7 @@ class TheliosLogic:
         self.brand_combo = None
         self.type_combo = None
         self.release_field = None
+        self.export_path_field = None
         
         self.start_slider = None
         self.current_payloads = []
@@ -44,7 +44,11 @@ class TheliosLogic:
         self.templates_dir = constants.TEMPLATES_PATH
         
         self._stage = omni.usd.get_context().get_stage()
-                    
+        
+        self.alert_instance = alerts.AlertWindow()
+        
+        self._tree = constants.MAT_DICT
+        
     def like_radio(self, model, first):
             """Turn on the model and turn off two checkboxes"""
             if model.get_value_as_bool():
@@ -62,63 +66,13 @@ class TheliosLogic:
     def get_combo_elements(self):
         combo_elements = qu.pop_combo_brands(constants.DB_KEY)
         return combo_elements
-        
-    def create_scrolling_frame(self):
-        scrolling_frame = ui.ScrollingFrame(
-                        height=200,
-                        horizontal_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_OFF,
-                        vertical_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_ON,
-                    )
-        return scrolling_frame
-        
-    def _create_hierarchy_and_import_payload(self):
-        """
-        Create USD hierarchy and import payloads for selected SKUs.
-        
-        This is the main batch import function that:
-        1. Gets the current USD stage context
-        2. Retrieves the model name from UI
-        3. Gets all selected SKUs from checkboxes
-        4. For each selected SKU:
-            - Creates the standardized USD hierarchy
-            - Constructs the payload file path
-            - Imports the USD payload
-        
-        The function integrates with the usd_tools module to perform
-        the actual USD operations and uses the configuration paths
-        to locate payload files.
-        
-        Example workflow:
-            User selects model and SKUs ["001", "002"]
-            -> Creates /World/Models/glass_Xform/Model_Xform/Release_v1.0/Model_001
-            -> Creates /World/Models/glass_Xform/Model_Xform/Release_v1.0/Model_002
-            -> Imports payloads from Model_001.usd and Model_002.usd
-        """
-        
-        model_value = self.model.model_model.get_value_as_string()
-        print(model_value)
-        
-        # Get selected SKUs from checkboxes
-        get_selected = self._get_selected_items_payloads()
-        
-        # Process each selected SKU
-        for data in get_selected:
-            sku = data[0]
-            release = data[1]
-            
-            # Create USD hierarchy structure
-            usd_tools.create_hierarchy_structure(self._stage, model_value, sku, release)
-            
-            # Construct paths for payload import
-            sku_prim_path = f"/World/Models/glass_Xform/{model_value}_Xform/Release_{release}/{model_value}_{sku}"
-            main_usd_dir = constants.BLOB_PATH
-            payload_file_path = f"{main_usd_dir}\\{model_value}\\sku\\{model_value}_{sku}.usd"
-            
-            print(f" --> {payload_file_path}")
-            print(f" --> {sku_prim_path}")
-            
-            # Import the payload
-            usd_tools.import_payload(payload_file_path, sku_prim_path)
+    
+    def get_brand_from_code(self, code):
+        key = code[:2]
+        brand = constants.BRANDS_DICT.get(key)
+        if brand:
+            return brand.replace(" ", "_")
+        return None
         
     # PLM query functions -------------------------------------------------------------------------------
         
@@ -134,8 +88,12 @@ class TheliosLogic:
                         for the specified model
             """
             model_value = self.model.model_model.get_value_as_string()
-            model_sku_res = qu.get_sku_model_plm(constants.DB_KEY, str(model_value))
-            return model_sku_res
+            if model_value == "":
+                self.alert_instance.post_notification_info("Please enter a model name")
+                return
+            else:
+                self.model_sku_res = qu.get_sku_model_plm(constants.DB_KEY, str(model_value))
+                return self.model_sku_res
         
     def _get_plm_data(self) -> list:
         """
@@ -198,7 +156,15 @@ class TheliosLogic:
             
     # Payloads selection functions ---------------------------------------------------------------------
     
-    def _import_sel_skus_payloads(self):
+    def create_scrolling_frame_custom_model(self):
+        self.scroll_frame_custom_model = ui.ScrollingFrame(
+                        height=200,
+                        horizontal_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_OFF,
+                        vertical_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_ON,
+                    )
+        return self.scroll_frame_custom_model
+    
+    def _import_sel_skus_custom_model(self):
             """
             Trigger the display of SKU selection interface.
             
@@ -208,7 +174,7 @@ class TheliosLogic:
             """
             #self.scroll_frame = self.create_scrolling_frame()
             self.show_labels = True
-            self.scroll_frame.rebuild()  # Update ScrollingFrame content
+            self.scroll_frame_custom_model.rebuild()  # Update ScrollingFrame content
         
     def _get_selected_items_payloads(self):
         """
@@ -221,7 +187,7 @@ class TheliosLogic:
             list: List of tuples containing (SKU, Release) for selected items
                 
         Example:
-            >>> selected = self._get_selected_items_payloads()
+            >>> selected = self._get_selected_items()
             >>> print(selected)
             [('001', '261'), ('003', '262')]
         """
@@ -234,7 +200,7 @@ class TheliosLogic:
         print(f"Selected items: {selected_items}")
         return selected_items
         
-    def _build_scrolling_content_payloads(self):
+    def _build_scrolling_content_custom_model(self):
         """
         Build the scrollable content for SKU selection table with optional filtering.
         
@@ -252,48 +218,113 @@ class TheliosLogic:
         self.checkbox_data = []  # Reset data storage
         sku_rel_list = self._get_sku_model_plm()
         
-        # Apply filter if filter value is set
-        if hasattr(self, 'apply_filter') and self.apply_filter:
-            filter_value = self.model.int_filter_model.get_value_as_string().strip()
-            if filter_value:
-                # Filter tuples where the second element (release) contains the filter value
-                sku_rel_list = [item for item in sku_rel_list if filter_value in str(item[1])]
-                print(f"Filtered results for release containing '{filter_value}': {len(sku_rel_list)} items")
+        if sku_rel_list == []:
+            self.alert_instance.post_notification_warning("No SKUs found for the specified model")
+            return
+        else:
         
-        if self.show_labels:
-            with ui.VStack(spacing=0):
-                for item in sku_rel_list:
-                    with ui.HStack():
-                        # Style name in green
-                        style_label = ui.Label(item[2],
-                                                height=16, 
-                                                style={"font_size":14, "color":cl("#77b901")}, 
-                                                alignment=ui.Alignment.CENTER)
-                        # SKU identifier
-                        sku_label = ui.Label(item[0], 
-                                            height=16, 
-                                            style={"font_size":16}, 
-                                            alignment=ui.Alignment.CENTER)
-                        # Release version
-                        release_label = ui.Label(item[1], 
+            # Apply filter if filter value is set
+            if hasattr(self, 'apply_filter') and self.apply_filter:
+                filter_value = self.model.int_filter_model.get_value_as_string().strip()
+                if filter_value:
+                    # Filter tuples where the second element (release) contains the filter value
+                    sku_rel_list = [item for item in sku_rel_list if filter_value in str(item[1])]
+                    print(f"Filtered results for release containing '{filter_value}': {len(sku_rel_list)} items")
+            
+            if self.show_labels:
+                with ui.VStack(spacing=0):
+                    for item in sku_rel_list:
+                        with ui.HStack():
+                            # Style name in green
+                            style_label = ui.Label(item[2],
+                                                    height=16, 
+                                                    style={"font_size":14, "color":cl("#77b901")}, 
+                                                    alignment=ui.Alignment.CENTER)
+                            # SKU identifier
+                            sku_label = ui.Label(item[0], 
                                                 height=16, 
                                                 style={"font_size":16}, 
                                                 alignment=ui.Alignment.CENTER)
-                        
-                        ui.Spacer()
-                        # Selection checkbox
-                        checkbox = ui.CheckBox(width=30, 
-                                            height=16, 
-                                            style={"color":cl("#77b901"), "background_color": cl(0.35)})
-                        
-                        # Store checkbox reference and associated data
-                        self.checkbox_data.append({
-                            'checkbox': checkbox,
-                            'sku': item[0],
-                            'release': item[1]
-                        })  
+                            # Release version
+                            release_label = ui.Label(item[1], 
+                                                    height=16, 
+                                                    style={"font_size":16}, 
+                                                    alignment=ui.Alignment.CENTER)
+                            
+                            ui.Spacer()
+                            # Selection checkbox
+                            checkbox = ui.CheckBox(width=30, 
+                                                height=16, 
+                                                style={"color":cl("#77b901"), "background_color": cl(0.35)})
+                            
+                            # Store checkbox reference and associated data
+                            self.checkbox_data.append({
+                                'checkbox': checkbox,
+                                'sku': item[0],
+                                'release': item[1]
+                            })
+        
+    def _create_hierarchy_and_import_payload(self):
+        """
+        Create USD hierarchy and import payloads for selected SKUs.
+        
+        This is the main batch import function that:
+        1. Gets the current USD stage context
+        2. Retrieves the model name from UI
+        3. Gets all selected SKUs from checkboxes
+        4. For each selected SKU:
+            - Creates the standardized USD hierarchy
+            - Constructs the payload file path
+            - Imports the USD payload
+        
+        The function integrates with the usd_tools module to perform
+        the actual USD operations and uses the configuration paths
+        to locate payload files.
+        
+        Example workflow:
+            User selects model and SKUs ["001", "002"]
+            -> Creates /World/Models/glass_Xform/Model_Xform/Release_v1.0/Model_001
+            -> Creates /World/Models/glass_Xform/Model_Xform/Release_v1.0/Model_002
+            -> Imports payloads from Model_001.usd and Model_002.usd
+        """
+        
+        model_value = self.model.model_model.get_value_as_string()
+        print(model_value)
+        
+        # Get selected SKUs from checkboxes
+        get_selected = self._get_selected_items_payloads()
+        
+        # Process each selected SKU
+        for data in get_selected:
+            sku = data[0]
+            release = data[1]
+            
+            # Create USD hierarchy structure
+            usd_tools.create_hierarchy_structure(self._stage, model_value, sku, release)
+            
+            # Construct paths for payload import
+            sku_prim_path = f"/World/Models/glass_Xform/{model_value}_Xform/Release_{release}/{model_value}_{sku}"
+            main_usd_dir = constants.BLOB_USD_PATH
+            brand_name = self.get_brand_from_code(model_value)
+            payload_file_path = f"{main_usd_dir}\\{brand_name}\\01_Models\\{model_value}\\sku\\{model_value}_{sku}.usd"
+            
+            print(f" --> {payload_file_path}")
+            print(f" --> {sku_prim_path}")
+            
+            # Import the payload
+            usd_tools.import_payload(payload_file_path, sku_prim_path)
+            
+        self.alert_instance.post_notification_info("Payloads imported successfully")
     
     # Rendering section --------------------------------------------------------------------------------
+    
+    def create_scrolling_frame_render(self):
+        self.scroll_frame_render = ui.ScrollingFrame(
+                        height=200,
+                        horizontal_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_OFF,
+                        vertical_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_ON,
+                    )
+        return self.scroll_frame_render
     
     def _render_sequence(self, res_combo, model_name):
         
@@ -339,48 +370,6 @@ class TheliosLogic:
                                                 single_frame)
         
         asyncio.ensure_future(renderer.render_sequence())
-        
-    def _render_sequence_v2(self, res_combo, model_name):
-        export_path = self.model.type_string_model.get_value_as_string()
-        
-        start_frame = self.model.startfr_model.get_value_as_int()
-        end_frame = self.model.endfr_model.get_value_as_int()
-        
-        single_frame = self.model.singlefr_model.get_value_as_int()
-        
-        resolution_model = res_combo.get_item_value_model()
-        
-        seq_value = self.model.sequence_model.get_value_as_bool()
-        single_value = self.model.single_model.get_value_as_bool()
-        
-        print(f"--- Export Path: {export_path} ---")
-        
-        if seq_value:
-            bool_value = True
-            print(f"--- Start Frame: {start_frame} ---")        
-            print(f"--- End Frame: {end_frame} ---")
-        elif single_value:
-            bool_value = False
-            print(f"--- Single Frame: {single_frame} ---")
-        else:
-            print("No render type selected, defaulting to Sequence")
-            return
-                
-        res_index = resolution_model.as_int
-        res_value = constants.RESOLUTIONS[res_index]
-        
-        print(f"--- Resolution: {res_value} ---")
-        
-        renderer = OmniCustomSequenceRenderer(model_name,
-                                                res_value, 
-                                                export_path, 
-                                                bool_value, 
-                                                start_frame, 
-                                                end_frame, 
-                                                single_frame)
-        
-        renderer.start_capture_extension_render()
-        #asyncio.ensure_future(renderer.start_capture_extension_render())
         
     def _render_sequence_v2(self, res_combo, model_name):
         export_path = self.model.type_string_model.get_value_as_string()
@@ -484,9 +473,23 @@ class TheliosLogic:
             raise
             
     def _render_selected_skus_async(self, res_combo):
-        selected_skus = self._get_selected_items_render()
-        print(f"--- SKUs to render: {selected_skus} ---")
-        asyncio.ensure_future(self._render_queue(res_combo, selected_skus))
+        payload_list = usd_tools.get_filtered_scopes()
+        
+        if payload_list == []:
+            self.alert_instance.post_notification_warning("No SKUs selected for rendering")
+            return
+        else:
+            if self.model.type_string_model.get_value_as_string() == "":
+                self.alert_instance.post_notification_warning("Please specify an export path")
+                return
+            else:
+                def ok_btn():
+                    selected_skus = self._get_selected_items_render()
+                    print(f"--- SKUs to render: {selected_skus} ---")
+                    asyncio.ensure_future(self._render_queue(res_combo, selected_skus))
+                    
+                message = "Have you launched a small render queue before?\n "
+                self.alert_instance.create_and_show_modal_window(message, ok_btn)
         
     def _get_selected_items_render(self):
         """
@@ -605,7 +608,7 @@ class TheliosLogic:
         print(f"Applying filter for release: {filter_value}")
         self.apply_filter = True
         self.show_labels = True
-        self.scroll_frame.rebuild()  # Update ScrollingFrame content with filter
+        self.scroll_frame_custom_model.rebuild()  # Update ScrollingFrame content with filter
         
     def _clear_filter(self):
         """
@@ -617,7 +620,7 @@ class TheliosLogic:
         self.apply_filter = False
         print("Filter cleared - showing all results")
         if self.show_labels:
-            self.scroll_frame.rebuild()  # Update ScrollingFrame content without filter
+            self.scroll_frame_custom_model.rebuild()  # Update ScrollingFrame content without filter
             
     def _clear_all(self):
         """Clear both the scroll frame and any applied filters."""
@@ -625,7 +628,8 @@ class TheliosLogic:
         self.show_labels = False
         self.checkbox_data = []
         self.checkbox_render_data = []
-        self.scroll_frame.clear()
+        self.scroll_frame_custom_model.clear()
+        
         print("Cleared all data and filters")
             
     # Single template import functions ------------------------------------------------------------------
@@ -636,16 +640,16 @@ class TheliosLogic:
         self.brand_camera_model = brand_camera_combo.get_item_value_model()
         template_tools._import_camera(  self._stage, 
                                         self.brand_camera_model, 
-                                        self.combo_elements, 
-                                        self.templates_dir)
+                                        self.combo_elements)
         
     def import_lights(self):
         print("--- Import: Lights ---")
-        template_tools._import_lights(self._stage, self.templates_dir)
+        template_tools._import_lights(self._stage)
         
     def import_limbo(self):
-        print("--- Import: Limbo ---")
-        template_tools._import_limbo(self._stage, self.templates_dir)
+        pass
+        #print("--- Import: Limbo ---")
+        #template_tools._import_limbo(self._stage)
         
     def import_settings(self):
         print("--- Import: Settings ---")
@@ -655,15 +659,19 @@ class TheliosLogic:
                 
         if context._camera_checkbox.model.get_value_as_bool():
             self.import_camera(context._brand_camera_combo)
+            self.alert_instance.post_notification_info("Camera imported successfully!")
             
         if context._lights_checkbox.model.get_value_as_bool():
             self.import_lights()
-            
+            self.alert_instance.post_notification_info("Lights imported successfully!")
+        """    
         if context._limbo_checkbox.model.get_value_as_bool():
             self.import_limbo()
-            
+            self.alert_instance.post_notification_info("Limbo imported successfully!")
+        """    
         if context._settings_checkbox.model.get_value_as_bool():
             self.import_settings()
+            self.alert_instance.post_notification_info("Settings imported successfully!")
             
         if not any([
             context._camera_checkbox.model.get_value_as_bool(),
@@ -671,12 +679,8 @@ class TheliosLogic:
             context._limbo_checkbox.model.get_value_as_bool(),
             context._settings_checkbox.model.get_value_as_bool()
         ]):
-            post_notification(
-                "No checkbox selected!",
-                duration=5,
-                status=NotificationStatus.WARNING
-            )
-            print("Import completed")
+            
+            self.alert_instance.post_notification_warning("No checkbox selected!")
             
         #Uncheck values
             
@@ -696,15 +700,10 @@ class TheliosLogic:
         
         context._camera_checkbox.model.set_value(False),
         context._lights_checkbox.model.set_value(False),
-        context._limbo_checkbox.model.set_value(False),
+        #context._limbo_checkbox.model.set_value(False),
         context._settings_checkbox.model.set_value(False)
         
-        post_notification(
-            "Import completed!",
-            duration=5,
-            status=NotificationStatus.INFO
-        )
-        print("Import completed")
+        self.alert_instance.post_notification_info("Full template imported successfully!")
         
     # View functions -------------------------------------------------------------------------------------
 
@@ -765,7 +764,25 @@ class TheliosLogic:
         return len(payload_list)
         
         #need some fixes here
-        payload_list = usd_tools.get_filtered_scopes()
-        return len(payload_list)
         
-        #need some fixes here
+    # Materials functions ---------------------------------------------------------------------------------
+    
+    def _fill_combo(self, model, items: list[str]):
+        # Svuota
+        for item in list(model.get_item_children()):
+            model.remove_item(item)
+        # Riempi
+        for value in items:
+            model.append_child_item(None, ui.SimpleStringModel(value))
+        # Se c'è almeno un elemento, seleziona il primo
+        if items:
+            model.get_item_value_model().set_value(0)
+            
+    def _get_selected_text(self, model) -> str | None:
+        children = model.get_item_children()
+        if not children:
+            return None
+        idx = model.get_item_value_model().as_int
+        if idx < 0 or idx >= len(children):
+            return None
+        return model.get_item_value_model(children[idx]).as_string
