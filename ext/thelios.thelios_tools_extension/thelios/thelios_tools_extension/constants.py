@@ -65,6 +65,7 @@ MAT_DICT = {
     "Lens": {
         "Gradient": {},
         "Solid": {},
+        "Mirror": {},
     },
     "Fabric": {},
     "Varnish": {},
@@ -78,6 +79,20 @@ MAT_DICT = {
         "Cork": {}
     },
 }
+
+MAT_MASTER_DICT = {
+                    "Utility" : "MI_Solid_Start.Usda",
+                    "Acetate" : "MI_Solid_Start.Usda",
+                    "Injected" : "MI_Solid_Start.Usda",
+                    "Metals" : "MI_Solid_Start.Usda",
+                    "Lens" : "MI_Solid_Start.Usda",
+                    "Fabric" : "MI_Solid_Start.Usda",
+                    "Varnish" : "MI_Solid_Start.Usda",
+                    "Gems" : "MI_Solid_Start.Usda",
+                    "Special" : "MI_Solid_Start.Usda",
+                }
+
+
 #Models init values ---------------------------------------------
 
 DEFAULT_RELEASE = 262
@@ -97,6 +112,10 @@ BLOB_PATH = r"U:\01_USD"
 BLOB_USD_PATH = r"U:\01_USD"
 BLOB_USD_TEMPLATE_PATH = "U:\\02_TOOLS\\01_Template"
 BLOB_CAMERAS_PATH = f"{BLOB_USD_TEMPLATE_PATH}\\cameras"
+MAT_LIBRARY_PATH_TEST = r"U:\03_MATERIAL_LIBRARY\55\Material"
+MAT_LIBRARY_PATH = r"U:\03_MAT_LIBRARY\Thelios_Mat_Library\Materials"
+MASTER_MATERIAL_FLD = r"U:\03_MAT_LIBRARY\55\Material"
+
 
 #USD templates filename
 TEMPL_LIGHTS = "lights.usd"
@@ -183,3 +202,8 @@ SCOPES_TO_KEEP = [  "Models",
 
 FWD_FRAME_ICON = ICONS_PATH.joinpath("next_fr.png")
 BACK_FRAME_ICON = ICONS_PATH.joinpath("prev_fr.png")
+
+# Materials / Textures extensions ------------------------------
+
+#TEXTURE_EXTENSIONS = ["All Files (*)",".jpg", ".jpeg", ".png", ".exr", ".tif", ".tiff"]
+TEXTURE_EXTENSIONS = ["All Files (*)", "Image Files (*.jpg *.jpeg *.png *.exr *.tif *.tiff)"]

@@ -1,3 +1,4 @@
+from xml.parsers.expat import model
 import omni.ui as ui
 import omni.ext
 from omni.ui import color as cl
@@ -14,6 +15,42 @@ from .models import TheliosWindowModel
 from .logic import TheliosLogic, OnImportContext
 from .tools.style import style_widgets
 from .tools.utils import usd_tools
+
+class ClearableStringField:
+    def __init__(self, model = ui.SimpleStringModel):
+        self._model = model
+        
+        with ui.HStack():
+            self._field = ui.StringField(
+                model=self._model,
+                height=10,
+                style={"margin":3}
+            )
+            ui.Spacer(width=0)
+            self._clear_btn = ui.Button(
+                " × ", width=10, 
+                height=10,
+                style={"margin":3},
+                clicked_fn=self._clear_text,
+                visible=False
+            )
+            
+        self._model.add_begin_edit_fn(self._on_value_changed)
+        self._model.add_end_edit_fn(self._on_value_changed)
+        self._model.add_value_changed_fn(self._on_value_changed)
+        
+    def _on_value_changed(self, model):
+        self._clear_btn.visible = bool(model.as_string)
+        
+    def _clear_text(self):
+        self._model.set_value("")
+        
+    def _on_text_changed(self, model):
+        text = model.as_string
+        self._clear_btn.visible = bool(text)
+        
+    def _clear_text(self):
+        self._model.as_string = ""
 
 class ImportTemplatePanel:
     def __init__(self):
@@ -294,15 +331,15 @@ class RenderSettingsPanel:
                     
                     ui.Label("Exp. Path", name="label", width=constants.LABEL_PADDING)
                     
-                    self.export_path_field = ui.StringField(self.model.type_string_model, name="export_path", height=10)
+                    self.export_path_field = ui.StringField(self.model.type_string_model, name="export_path", height=10, style={"margin":3})
                     
                     ui.Button(name="Scegli cartella", 
                             image_url="resources/icons/folder.png", 
                             alignemnt=ui.Alignment.TOP,
-                            width=28,
-                            height=28,
+                            width=30,
+                            height=30,
                             clicked_fn=on_folder_icon_click,
-                            style={"margin":3, "background_color": cl(0)})
+                            )
                     #self._create_control_state()
                     
                 with ui.HStack(spacing=10):
@@ -378,8 +415,6 @@ class ViewPanel:
                     self.select_btn = ui.Button("Select", clicked_fn=lambda combobox=self.payloads_combo: self.logic._get_selected_scope(combobox), name="select_button")
                 
                 #searchable_combo_box = self.create_searchable_combo_box()
-                
-                ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
                 
                 self.slider_container = ui.VStack()
         
@@ -494,44 +529,74 @@ class MaterialsPanel:
             with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
                 
                 # Release input field
-                with ui.HStack(spacing=10):
+                with ui.HStack(spacing=5):
                     ui.Label("Category", name="label", width=constants.LABEL_PADDING)
-                    self._cat_combo = ui.ComboBox(0, "", height=10, name="combo_cat", style={"margin":3}).model
-                    ui.Label("Sub-Category", name="label", width=constants.LABEL_PADDING)
+                    self.cat_combo = ui.ComboBox(0, "", height=10, name="combo_cat", style={"margin":3}).model
+                    
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})
+                    
+                    ui.Label("  Sub-Cat.", name="label", width=constants.LABEL_PADDING)
                     self.sub_cat_combo = ui.ComboBox(0, "", height=10, name="combo_sub_cat", style={"margin":3}).model
                     
-                    self.logic._fill_combo(self._cat_combo, list(self._tree.keys()))
+                    self.logic._fill_combo(self.cat_combo, list(self._tree.keys()))
                     # Callback quando cambia la selezione del primo
-                    self._cat_combo.add_item_changed_fn(self._on_macro_changed)
+                    self.cat_combo.add_item_changed_fn(self._on_macro_changed)
                     
                 # Brand selection dropdown
-                with ui.HStack(spacing=10):
+                with ui.HStack(spacing=5):
                     ui.Label("Code", name="label", width=constants.LABEL_PADDING)
-                    self.model_field = ui.StringField(self.model.model_model, name="model", height=10, style={"margin":3})
+                    #self.code_field = ui.StringField(self.model.mat_code_model, name="code", height=10, style={"margin":3})
+                    self.code_field = ClearableStringField(self.model.mat_code_model)
                     
-                    ui.Label("Name", name="label", width=constants.LABEL_PADDING)
-                    self.model_field = ui.StringField(self.model.model_model, name="model", height=10, style={"margin":3})
+                    ui.Rectangle(width=1, style={"background_color": cl(0.3), "margin": 0})
+                    
+                    ui.Label("  Name", name="label", width=constants.LABEL_PADDING)
+                    #self.name_field = ui.StringField(self.model.mat_name_model, name="name", height=10, style={"margin":3})
+                    self.name_field = ClearableStringField(self.model.mat_name_model)
                     #self._create_control_state()
                     
+                """    
+                ui.Spacer(height=2)
+                
                 # Type/Genre selection dropdown
                 with ui.HStack(spacing=10):
-                    ui.Label("Textures", name="label", width=constants.LABEL_PADDING)
+                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                    ui.Label("Textures", name="label", alignment=ui.Alignment.CENTER, width=constants.LABEL_PADDING, style={"margin":-6})
+                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
                     
-                    self.export_path_field = ui.StringField(self.model.type_string_model, name="export_path", height=10)
-                    ui.Button(name="Scegli cartella", 
-                            image_url="resources/icons/folder.png", 
-                            alignemnt=ui.Alignment.TOP,
-                            width=28,
-                            height=28,
-                            clicked_fn=lambda: print("Select folder clicked"),
-                            style={"margin":3, "background_color": cl(0)})
-                    
-                # Create material buttton
-                self.create_mtl_btn = ui.Button("Create Material", clicked_fn=self.logic._get_plm_data, name="import_collection")
-                ui.Spacer(height=0)
+                ui.Spacer(height=1)
                 
-    
-    
+                with ui.VStack(spacing=10):
+                    with ui.HStack(spacing=10):
+                        ui.Label("Base Color", name="label", width=constants.LABEL_PADDING)
+                        
+                        self.basecolor_path_field = ui.StringField(self.model.basecolor_model, name="export_path", height=10, style={"margin":3})
+                        ui.Button(name="Scegli cartella", \
+                                image_url="resources/icons/folder.png", 
+                                alignemnt=ui.Alignment.TOP,
+                                width=30,
+                                height=30,
+                                clicked_fn=lambda: self.logic.on_folder_icon_click_file(self.model.basecolor_model)
+                                )
+                        
+                    with ui.HStack(spacing=10): 
+                        ui.Label("Roughness", name="label", width=constants.LABEL_PADDING)
+                        self.roughness_path_field = ui.StringField(self.model.roughness_model, name="export_path", height=10, style={"margin":3})
+                        ui.Button(name="Scegli cartella", \
+                                image_url="resources/icons/folder.png", 
+                                alignemnt=ui.Alignment.TOP,
+                                width=30,
+                                height=30,
+                                clicked_fn=lambda: self.logic.on_folder_icon_click_file(self.model.roughness_model)
+                                )
+                        
+                ui.Spacer(height=1)
+                ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                """    
+                # Create material buttton
+                self.create_mtl_btn = ui.Button("Create Material", clicked_fn=self.print_test, name="import_collection")
+                
+                
     def _on_macro_changed(self, model, item):
         selected = self.logic._get_selected_text(model)
         if not selected:
@@ -544,3 +609,29 @@ class MaterialsPanel:
         self.logic._fill_combo(self.sub_cat_combo, sub_items)
         
         return sub_items
+    
+    def print_test(self):
+        
+        index_cat = self.cat_combo.get_item_value_model().get_value_as_int()
+        children_cat = self.cat_combo.get_item_children()
+        
+        index_subcat = self.sub_cat_combo.get_item_value_model().get_value_as_int()
+        children_subcat = self.sub_cat_combo.get_item_children()
+        
+        if 0 <= index_cat < len(children_cat):
+            category = self.cat_combo.get_item_value_model(children_cat[index_cat]).as_string
+            print(f"Selected category: {category}")
+            
+        if 0 <= index_subcat < len(children_subcat):
+            subcategory = self.sub_cat_combo.get_item_value_model(children_subcat[index_subcat]).as_string
+        else:
+            subcategory = ""
+            
+        code = self.model.mat_code_model.get_value_as_string()
+        name = self.model.mat_name_model.get_value_as_string()
+        
+        new_name = f"{code}_{name}"
+        
+        dest_fld = f"{self.logic.create_fld_mat(category, subcategory, code, name)}"
+        
+        self.logic.copy_mat_to_dest_fld(dest_fld, category, new_name)

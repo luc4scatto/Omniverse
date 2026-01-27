@@ -64,6 +64,10 @@ class TheliosToolsWindow:
                         self.custom_model_import_panel = CustomModelImportPanel(self.model, self.logic)
                         self.custom_model_import_panel.build(CollapsableFrame_style)
                         
+                        #Import material panel class
+                        self.material_panel = MaterialsPanel(self.model, self.logic)
+                        self.material_panel.build(CollapsableFrame_style)
+                        
                         #Import render settings panel class
                         self.render_panel = RenderSettingsPanel(self.model, self.logic)
                         self.render_panel.build(CollapsableFrame_style)
@@ -71,9 +75,5 @@ class TheliosToolsWindow:
                         #Import view settings panel class
                         self.view_panel = ViewPanel(self.model, self.logic)
                         self.view_panel.build(CollapsableFrame_style)
-                        
-                        #Import material panel class
-                        self.material_panel = MaterialsPanel(self.model, self.logic)
-                        self.material_panel.build(CollapsableFrame_style)
                         
         return self._editor_window

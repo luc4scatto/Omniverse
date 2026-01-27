@@ -19,5 +19,11 @@ class TheliosWindowModel:
         
         self.slider_view_model = ui.SimpleStringModel("")
         
+        self.mat_code_model = ui.SimpleStringModel()
+        self.mat_name_model = ui.SimpleStringModel()
+        
+        self.basecolor_model = ui.SimpleStringModel()
+        self.roughness_model = ui.SimpleStringModel()
+        
         #self._timeline = omni.timeline.get_timeline_interface()
         #self._current_fps = self._timeline.get_time_codes_per_seconds()

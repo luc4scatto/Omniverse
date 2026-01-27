@@ -1,8 +1,13 @@
+from posixpath import dirname
 import omni.ui as ui
 from omni.ui import color as cl
 import omni.usd
 from omni.kit.notification_manager import post_notification, NotificationStatus
+from omni.kit.window.filepicker import FilePickerDialog
+from omni.kit.widget.filebrowser import FileBrowserItem
 import asyncio
+import os
+import shutil
 
 from dataclasses import dataclass
 
@@ -48,6 +53,69 @@ class TheliosLogic:
         self.alert_instance = alerts.AlertWindow()
         
         self._tree = constants.MAT_DICT
+        
+    # File Dialogs ------------------------------------------------------------------------------------
+        
+    def on_folder_icon_click(self, field):
+        # Apertura FilePicker solo per cartelle
+        
+        def on_folder_selected(dialog, in_field, dirname):
+                # Solo cartella selezionata
+                dialog.hide()
+                field.set_value(dirname)
+        
+        dialog = FilePickerDialog(
+            "Select Folder",
+            apply_button_label="Select",
+            click_apply_handler=lambda field, dirname: on_folder_selected(dialog, field, dirname),
+            select_folder=False  # Opzione solo cartella!
+        )
+        dialog.show()
+        
+    def on_folder_icon_click_file(self, field):
+        # Apertura FilePicker solo per cartelle
+        
+        text_extensions = constants.TEXTURE_EXTENSIONS
+        
+        dialog = FilePickerDialog(
+            "Select File",
+            apply_button_label="Select",
+            click_apply_handler=lambda filename, dirname: self.on_click_open(dialog, filename, dirname, field),
+            item_filter_options=text_extensions,
+            item_filter_fn=lambda item: self.on_filter_item(dialog, item),
+            options_pane_build_fn=self.options_pane_build_fn
+        )
+        
+    def on_click_open(self, dialog: FilePickerDialog, filename: str, dirname: str, field: ui.StringField):
+        
+        dirname = dirname.strip()
+        if dirname and not dirname.endswith("/"):
+            dirname += "/"
+        fullpath = f"{dirname}{filename}"
+        print(f"Opened file '{fullpath}'.")   
+        
+        dialog.hide()
+        field.set_value(fullpath)
+        
+    def on_filter_item(self, dialog: FilePickerDialog, item: FileBrowserItem) -> bool:
+        if not item or item.is_folder:
+            return True
+        if dialog.current_filter_option == 0:
+            # Show only files with listed extensions
+            _, ext = os.path.splitext(item.path)
+            if ext in [".usd", ".usda", ".usdc", ".usdz"]:
+                return True
+            else:
+                return False
+        else:
+            # Show All Files (*)
+            return True 
+        
+    def options_pane_build_fn(self, selected_items):
+        with ui.CollapsableFrame("Reference Options"):
+            with ui.HStack(height=0, spacing=2):
+                ui.Label("Prim Path", width=0)
+        return True
         
     def like_radio(self, model, first):
             """Turn on the model and turn off two checkboxes"""
@@ -786,3 +854,37 @@ class TheliosLogic:
         if idx < 0 or idx >= len(children):
             return None
         return model.get_item_value_model(children[idx]).as_string
+    
+    def create_fld_mat(self, cat, subcat, code, name) -> str:
+        print(f"{cat} - {subcat} - {code} - {name}")
+        
+        mat_name = f"{code}_{name}"
+        dest_folder = constants.MAT_LIBRARY_PATH + f"\\{cat}\\{subcat}\\{mat_name}"
+        
+        if not os.path.exists(dest_folder):
+            os.makedirs(dest_folder)
+            print(f"Folder '{dest_folder}' created.")
+            
+        return dest_folder
+            
+    def copy_mat_to_dest_fld (self, dest_fld, category, new_name):
+        
+        master_mat_dict = constants.MAT_MASTER_DICT
+        instance_material = master_mat_dict[category]
+        print(f"Instance material: {instance_material}")
+        
+        master_mat_fld = constants.MASTER_MATERIAL_FLD
+        
+        final_source_fld = f"{master_mat_fld}\\{instance_material}"
+        final_dest_fld = f"{dest_fld}\\{instance_material}"
+        
+        print(f" +++ Source folder: {final_source_fld}")
+        print(f" *** Destination folder: {final_dest_fld}")
+        
+        if os.path.exists(dest_fld):
+            shutil.copy(final_source_fld, final_dest_fld)
+            print(f"Material copied to '{final_dest_fld}' successfully.")
+            
+            os.rename(final_dest_fld, f"{dest_fld}\\{new_name}.usda")
+            print(f"Material renamed to '{new_name}.usda' successfully.")
+            
