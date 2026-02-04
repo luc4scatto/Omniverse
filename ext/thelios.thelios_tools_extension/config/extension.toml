@@ -35,7 +35,7 @@ reloadable = true
 name = "thelios.thelios_tools_extension"
 
 [python.pipapi]
-requirements = ["pyodbc","pxr"]
+requirements = ["pyodbc","pxr","thefuzz"]
 use_online_index = true
 
 [documentation]

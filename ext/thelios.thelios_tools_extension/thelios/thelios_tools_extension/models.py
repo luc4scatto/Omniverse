@@ -22,6 +22,8 @@ class TheliosWindowModel:
         self.mat_code_model = ui.SimpleStringModel()
         self.mat_name_model = ui.SimpleStringModel()
         
+        self.search_mat_model = ui.SimpleStringModel()
+        
         self.basecolor_model = ui.SimpleStringModel()
         self.roughness_model = ui.SimpleStringModel()
         

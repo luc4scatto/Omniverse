@@ -6,7 +6,7 @@ import carb
 import os
 
 from ... import constants
-from ..utils import usd_tools
+from ..utils.usd_tools import USDTools as usdt
 
 world_path = constants.WORLD_PATH
 camera_target = constants.CAMERA_TARGET
@@ -14,6 +14,7 @@ light_target = constants.LIGHT_TARGET
 limbo_target = constants.LIMBO_TARGET
 
 _stage = omni.usd.get_context().get_stage()
+usd_tools_inst = usdt()
 
 def get_or_create_scope(stage: Usd.Stage, path: str) -> UsdGeom.Scope:
         """
@@ -95,19 +96,27 @@ def _default_prim_set(stage: Usd.Stage):
     setup_path = f"{world_path}/Setup"
     setup_scope = get_or_create_scope(_stage, setup_path)
 
-def _import_camera(stage: Usd.Stage, brand_camera_model: str, combo_elements: list):
+def _import_camera(stage: Usd.Stage, combo_elements: list):
     _default_prim_set(stage)
-    
+    """
     brand_camera_index = brand_camera_model.as_int
     brand_camera_value = combo_elements[brand_camera_index]
     brand_camera = brand_camera_value.replace(" ", "_")
+    """
     
     #camera_payload = f"{templates_dir}\\ABC\\camera\\{brand_camera}_cam.usd"
-    camera_payload = f"{constants.BLOB_CAMERAS_PATH}\\{brand_camera}_cam.usd"
+    camera_payload = f"{constants.BLOB_CAMERAS_PATH}\\Main_cam.usd"
     print(camera_payload)
     
     camera_xform = get_or_create_xform(stage, camera_target)
-    usd_tools.import_payload(camera_payload, camera_target)
+
+    #usd_tools_inst.import_reference(camera_payload, camera_target)
+    usd_tools_inst.create_reference_under_parent(
+        asset_usd_path=camera_payload,
+        prim_in_file="",
+        parent_path=camera_target,
+        local_name="Main_cam"
+    )
     
 def _import_lights(stage: Usd.Stage):
     _default_prim_set(stage)
@@ -115,14 +124,18 @@ def _import_lights(stage: Usd.Stage):
     light_payload = f"{constants.BLOB_USD_TEMPLATE_PATH}\\{constants.TEMPL_LIGHTS}"
     
     lights_xform = get_or_create_scope(stage, light_target)
-    usd_tools.import_payload(light_payload, light_target)
+    usd_tools_inst.create_reference_under_parent(
+        asset_usd_path=light_payload, 
+        prim_in_file="",
+        parent_path=light_target,
+        local_name="Light_Setup")
     
 def _import_limbo(stage: Usd.Stage):
     _default_prim_set(stage)
     limbo_xform = get_or_create_xform(stage, limbo_target)
     limbo_payload = f"{constants.BLOB_USD_TEMPLATE_PATH}\\{constants.TEMPL_LIMBO}"
     
-    usd_tools.import_payload(limbo_payload, limbo_target)
+    usd_tools_inst.import_payload(limbo_payload, limbo_target)
 
 def _import_settings(stage: Usd.Stage):
     #_default_prim_set(stage)

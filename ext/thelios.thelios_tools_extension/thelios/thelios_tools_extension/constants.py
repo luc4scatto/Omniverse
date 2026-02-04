@@ -37,52 +37,52 @@ GENRES = [
 
 MAT_DICT = {
     "Utility": {
+        "Common_Mats": {},
         "ID": {},
         "HDR": {},
-        "Common_Mats": {},
     },
     "Acetate": {
-        "Havana": {},
         "Opaline": {},
+        "Havana": {},
         "Solid": {},
         "Transparent": {},
     },
     "Injected": {
-        "Solid": {},
-        "Trasparent": {},
         "Opaline": {},
         "Havana": {},
         "Rubber": {},
+        "Solid": {},
+        "Trasparent": {},
     },
     "Metals": {
         "Brushed": {},
-        "Sand_Blasted": {},
-        "Shiny": {},
         "Matte": {},
-        "Tumbled": {},
+        "Sand_Blasted": {},
         "Satin": {},
+        "Shiny": {},
+        "Tumbled": {},
     },
     "Lens": {
         "Gradient": {},
-        "Solid": {},
         "Mirror": {},
+        "Solid": {},
     },
     "Fabric": {},
     "Varnish": {},
     "Gems": {
-        "Strass": {},
         "Stones": {},
+        "Strass": {},
     },
     "Special": {
         "Carbon_Fiber": {},
-        "Leather": {},
-        "Cork": {}
+        "Cork": {},
+        "Leather": {}
     },
 }
 
 MAT_MASTER_DICT = {
                     "Utility" : "MI_Solid_Start.Usda",
-                    "Acetate" : "MI_Solid_Start.Usda",
+                    "Acetate" : "Solid_MI.Usda",
                     "Injected" : "MI_Solid_Start.Usda",
                     "Metals" : "MI_Solid_Start.Usda",
                     "Lens" : "MI_Solid_Start.Usda",
@@ -92,6 +92,7 @@ MAT_MASTER_DICT = {
                     "Special" : "MI_Solid_Start.Usda",
                 }
 
+MAT_LIMIT_SEARCH = 5
 
 #Models init values ---------------------------------------------
 
@@ -114,8 +115,7 @@ BLOB_USD_TEMPLATE_PATH = "U:\\02_TOOLS\\01_Template"
 BLOB_CAMERAS_PATH = f"{BLOB_USD_TEMPLATE_PATH}\\cameras"
 MAT_LIBRARY_PATH_TEST = r"U:\03_MATERIAL_LIBRARY\55\Material"
 MAT_LIBRARY_PATH = r"U:\03_MAT_LIBRARY\Thelios_Mat_Library\Materials"
-MASTER_MATERIAL_FLD = r"U:\03_MAT_LIBRARY\55\Material"
-
+MASTER_MATERIAL_FLD = r"U:\03_MAT_LIBRARY\Thelios_Mat_Library\Master_Material\MI"
 
 #USD templates filename
 TEMPL_LIGHTS = "lights.usd"
@@ -131,10 +131,10 @@ ICONS_PATH = Path(__file__).parent.joinpath("tools","style","icons")
 IMPORT_TEMPLATE_UI_VISIBILITY = True
 IMPORT_ALL_COLLECTION_UI_VISIBILITY = True
 CUSTOM_IMPORT_TEMPLATE_UI_VISIBILITY = True
-CUSTOM_MODEL_IMPORT_UI_VISIBILITY = True
+CUSTOM_MODEL_IMPORT_UI_VISIBILITY = False
 RENDER_UI_VISIBILITY = True
 VIEW_UI_VISIBILITY = True
-MATERIALS_UI_VISIBILITY = False
+MATERIALS_UI_VISIBILITY = True
 
 #Styles ------------------------------------------------------
 
@@ -190,6 +190,7 @@ PREROLL_FRAMES = 3
 CAMERA_TARGET = "/World/Setup/Cameras"
 LIGHT_TARGET = "/World/Setup/Lights"
 LIMBO_TARGET = "/World/Setup/Limbo"
+MATERIAL_TARGET = "/World/Looks"
 WORLD_PATH = "/World"
 
 SCOPES_TO_KEEP = [  "Models", 

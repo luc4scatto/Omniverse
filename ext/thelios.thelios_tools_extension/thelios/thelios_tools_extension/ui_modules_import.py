@@ -117,11 +117,12 @@ class CustomTemplateImportPanel:
         with ui.CollapsableFrame(title="Custom Import Template Scene ", style=style, collapsed=constants.CUSTOM_IMPORT_TEMPLATE_UI_VISIBILITY):
             with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
                     
-                # Brand selection dropdown
+                """
                 with ui.HStack(spacing=10):
                     ui.Label("Camera Selection", name="label", width=constants.LABEL_PADDING)
                     self.brand_camera_combo = ui.ComboBox(1, *self.combo_elements, height=10, name="camera_brand").model
                     #self._create_control_state()
+                """
                     
                 ui.Spacer(height=2)    
                 
@@ -160,16 +161,16 @@ class CustomTemplateImportPanel:
                         context = OnImportContext(_camera_checkbox = camera_checkbox, 
                                                     _lights_checkbox = lights_checkbox, 
                                                     #_limbo_checkbox = limbo_checkbox, 
-                                                    _settings_checkbox = settings_checkbox,
-                                                    _brand_camera_combo = self.brand_camera_combo)
+                                                    _settings_checkbox = settings_checkbox)
+                                                    #_brand_camera_combo = self.brand_camera_combo)
                         self.logic.on_import_click(context)
                         
                     def on_import_click_all():  
                         context = OnImportContext(_camera_checkbox = camera_checkbox, 
                                                     _lights_checkbox = lights_checkbox, 
                                                     #_limbo_checkbox = limbo_checkbox, 
-                                                    _settings_checkbox = settings_checkbox,
-                                                    _brand_camera_combo = self.brand_camera_combo)
+                                                    _settings_checkbox = settings_checkbox)
+                                                    #_brand_camera_combo = self.brand_camera_combo)
                         self.logic.on_import_click_all(context)
                     
                 # Import button
@@ -406,6 +407,8 @@ class ViewPanel:
         self.slider_container = None  # contenitore dinamico per slider, bottoni e stringfield
         self.current_slider_value = 1
         
+        self.usd_tools = usd_tools.USDTools()
+        
     def build(self, style):
         with ui.CollapsableFrame(title="View", style=style, collapsed=constants.VIEW_UI_VISIBILITY):
             with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
@@ -454,7 +457,7 @@ class ViewPanel:
             )
     
     def _forward_frame(self):
-        payload_list = usd_tools.get_filtered_scopes()
+        payload_list = self.usd_tools.get_filtered_scopes()
         current_value = self.start_slider.get_value_as_int()
         new_value = current_value + 1
         max_val = len(payload_list)
@@ -484,7 +487,7 @@ class ViewPanel:
         if v < 1:
             print(f"Warning: slider value < 1: {v}, clamping to 1")
             v = 1
-        payload_list = usd_tools.get_filtered_scopes()
+        payload_list = self.usd_tools.get_filtered_scopes()
         current_model_selected = payload_list[v - 1]
         # Qui chiami la funzione dentro logic, non dentro ViewPanel
         self.logic._get_selected_scope_string(current_model_selected)
@@ -498,10 +501,10 @@ class ViewPanel:
             
         # Define the list of items for the combo box
         
-        if usd_tools.get_filtered_scopes() is None:
+        if self.usd_tools.get_filtered_scopes() is None:
             item_list = ["-"]
         else:
-            item_list = usd_tools.get_filtered_scopes()
+            item_list = self.usd_tools.get_filtered_scopes()
             
         # Create the searchable combo box with the specified items and callback
         searchable_combo_widget = build_searchable_combo_widget(
@@ -523,12 +526,57 @@ class MaterialsPanel:
         self.logic = logic
         
         self._tree = constants.MAT_DICT
+        self.usd_tools = usd_tools.USDTools()
         
     def build(self, style):
         with ui.CollapsableFrame(title="Materials ", style=style, collapsed=constants.MATERIALS_UI_VISIBILITY):
             with ui.VStack(height=0, spacing=10, name="frame_v_stack"):
                 
-                # Release input field
+                # ----------------------------------------------------------------------------------------------------------------------------------
+                with ui.HStack(spacing=10):
+                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                    ui.Label(" Search Materials ", name="label", alignment=ui.Alignment.CENTER, width=constants.LABEL_PADDING, style={"margin":-6})
+                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                    
+                ui.Spacer(height=1)
+                
+                with ui.HStack(spacing=10):
+                    self.search_mat_field = ClearableStringField(self.model.search_mat_model)
+                    self.search_mtl_btn = ui.Button("Search Material", clicked_fn=self._on_search_material_clicked, name="search_material")
+                    
+                with ui.HStack(spacing=10):
+                    self.result_combo = ui.ComboBox(0, "", height=10, name="combo_result", style={"margin":3}).model
+                    self.load_sugg_mtl_btn = ui.Button("Load Material", name="load_material", clicked_fn = self.import_selected_material )
+                
+                # ----------------------------------------------------------------------------------------------------------------------------------
+                
+                ui.Spacer(height=2)
+                    
+                with ui.HStack(spacing=10):
+                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                    ui.Label(" Update Materials ", name="label", alignment=ui.Alignment.CENTER, width=constants.LABEL_PADDING, style={"margin":-6})
+                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                    
+                ui.Spacer(height=2)
+                
+                with ui.HStack(spacing=10):
+                    self.refresh_mtl_btn = ui.Button("Refresh Mat List", name="refresh_material", clicked_fn = self.pop_combo_with_materials_in_scene)
+                    self.mat_list_combo = ui.ComboBox(0, "", height=10, name="combo_result", style={"margin":3}).model
+                with ui.HStack(spacing=10):
+                    self.update_mtl_btn = ui.Button("Update Material", name="update_material", clicked_fn = self.update_selected_material )
+                
+                # ----------------------------------------------------------------------------------------------------------------------------------
+                
+                ui.Spacer(height=2)
+                
+                with ui.HStack(spacing=10):
+                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                    ui.Label(" Create Materials ", name="label", alignment=ui.Alignment.CENTER, width=constants.LABEL_PADDING, style={"margin":-6})
+                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
+                    
+                ui.Spacer(height=1)
+                
+                
                 with ui.HStack(spacing=5):
                     ui.Label("Category", name="label", width=constants.LABEL_PADDING)
                     self.cat_combo = ui.ComboBox(0, "", height=10, name="combo_cat", style={"margin":3}).model
@@ -555,17 +603,14 @@ class MaterialsPanel:
                     self.name_field = ClearableStringField(self.model.mat_name_model)
                     #self._create_control_state()
                     
-                """    
+                # Create material buttton
+                self.create_mtl_btn = ui.Button("Create Material", clicked_fn=self.print_test, name="import_collection")
+                    
                 ui.Spacer(height=2)
                 
-                # Type/Genre selection dropdown
-                with ui.HStack(spacing=10):
-                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
-                    ui.Label("Textures", name="label", alignment=ui.Alignment.CENTER, width=constants.LABEL_PADDING, style={"margin":-6})
-                    ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
-                    
-                ui.Spacer(height=1)
                 
+                
+                """    
                 with ui.VStack(spacing=10):
                     with ui.HStack(spacing=10):
                         ui.Label("Base Color", name="label", width=constants.LABEL_PADDING)
@@ -593,8 +638,6 @@ class MaterialsPanel:
                 ui.Spacer(height=1)
                 ui.Rectangle(height=1, style={"background_color": cl(0.3), "margin": 0})
                 """    
-                # Create material buttton
-                self.create_mtl_btn = ui.Button("Create Material", clicked_fn=self.print_test, name="import_collection")
                 
                 
     def _on_macro_changed(self, model, item):
@@ -635,3 +678,24 @@ class MaterialsPanel:
         dest_fld = f"{self.logic.create_fld_mat(category, subcategory, code, name)}"
         
         self.logic.copy_mat_to_dest_fld(dest_fld, category, new_name)
+        
+    def _on_search_material_clicked(self):
+        self.logic.pop_combo_with_suggestions(self.result_combo)
+        
+    def import_selected_material(self):
+        self.logic.import_material_to_stage(self.result_combo)
+        
+    def pop_combo_with_materials_in_scene(self):
+        materials = self.logic._get_in_scene_materials()
+        self.logic._fill_combo(self.mat_list_combo, materials)
+        
+    def update_selected_material(self):
+        
+        index_sel_mat = self.mat_list_combo.get_item_value_model().get_value_as_int()
+        children_sel_mat = self.mat_list_combo.get_item_children()
+        
+        if 0 <= index_sel_mat < len(children_sel_mat):
+            selected_mat = self.mat_list_combo.get_item_value_model(children_sel_mat[index_sel_mat]).as_string
+        
+        mat_to_update =f"/World/Looks/{selected_mat}"
+        self.usd_tools.save_material_overrides_to_source(mat_to_update)

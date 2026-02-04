@@ -1,10 +1,13 @@
-from posixpath import dirname
 import omni.ui as ui
 from omni.ui import color as cl
 import omni.usd
 from omni.kit.notification_manager import post_notification, NotificationStatus
 from omni.kit.window.filepicker import FilePickerDialog
 from omni.kit.widget.filebrowser import FileBrowserItem
+
+from thefuzz import process
+from pxr import Sdf, Gf, UsdShade
+
 import asyncio
 import os
 import shutil
@@ -25,7 +28,7 @@ class OnImportContext:
     _lights_checkbox: bool
     #_limbo_checkbox: bool
     _settings_checkbox: bool
-    _brand_camera_combo: str
+    #_brand_camera_combo: str
     
 class TheliosLogic:
     def __init__(self, model: TheliosWindowModel):
@@ -51,9 +54,11 @@ class TheliosLogic:
         self._stage = omni.usd.get_context().get_stage()
         
         self.alert_instance = alerts.AlertWindow()
+        self.usd_tools = usd_tools.USDTools()
         
         self._tree = constants.MAT_DICT
         
+    #MARK: FILE DIALOGS
     # File Dialogs ------------------------------------------------------------------------------------
         
     def on_folder_icon_click(self, field):
@@ -142,6 +147,7 @@ class TheliosLogic:
             return brand.replace(" ", "_")
         return None
         
+    #MARK: PLM
     # PLM query functions -------------------------------------------------------------------------------
         
     def _get_sku_model_plm(self):
@@ -222,6 +228,7 @@ class TheliosLogic:
             print(res_query)
             return res_query
             
+    #MARK: PAYLOADS/REF
     # Payloads selection functions ---------------------------------------------------------------------
     
     def create_scrolling_frame_custom_model(self):
@@ -368,7 +375,7 @@ class TheliosLogic:
             release = data[1]
             
             # Create USD hierarchy structure
-            usd_tools.create_hierarchy_structure(self._stage, model_value, sku, release)
+            self.usd_tools.create_hierarchy_structure(self._stage, model_value, sku, release)
             
             # Construct paths for payload import
             sku_prim_path = f"/World/Models/glass_Xform/{model_value}_Xform/Release_{release}/{model_value}_{sku}"
@@ -380,10 +387,16 @@ class TheliosLogic:
             print(f" --> {sku_prim_path}")
             
             # Import the payload
-            usd_tools.import_payload(payload_file_path, sku_prim_path)
+            #self.usd_tools.import_payload(payload_file_path, sku_prim_path)
+            self.usd_tools.create_reference_under_parent(
+                asset_usd_path=payload_file_path, 
+                prim_in_file="",
+                parent_path=sku_prim_path,
+                local_name=f"{model_value}_{sku}")
             
         self.alert_instance.post_notification_info("Payloads imported successfully")
     
+    #MARK: RENDER
     # Rendering section --------------------------------------------------------------------------------
     
     def create_scrolling_frame_render(self):
@@ -541,7 +554,7 @@ class TheliosLogic:
             raise
             
     def _render_selected_skus_async(self, res_combo):
-        payload_list = usd_tools.get_filtered_scopes()
+        payload_list = self.usd_tools.get_filtered_scopes()
         
         if payload_list == []:
             self.alert_instance.post_notification_warning("No SKUs selected for rendering")
@@ -586,7 +599,7 @@ class TheliosLogic:
     def _build_scrolling_content_render(self):
         self.checkbox_render_data = []
         
-        payload_list = usd_tools.get_filtered_scopes()
+        payload_list = self.usd_tools.get_filtered_scopes()
         
         with ui.VStack(spacing=0):
                 for item in payload_list:
@@ -656,6 +669,7 @@ class TheliosLogic:
         else:
             self._select_all_render_items()  
         
+    #MARK: FILTERS
     # Filtering an cleaning functions -------------------------------------------------------------------
         
     def _filter_skus(self):
@@ -700,14 +714,15 @@ class TheliosLogic:
         
         print("Cleared all data and filters")
             
+    #MARK: S TEMPL IMP
     # Single template import functions ------------------------------------------------------------------
         
-    def import_camera(self, brand_camera_combo):
+    def import_camera(self):
         print("--- Import: Camera ---")
         self.combo_elements = self.get_combo_elements()
-        self.brand_camera_model = brand_camera_combo.get_item_value_model()
+        #self.brand_camera_model = brand_camera_combo.get_item_value_model()
         template_tools._import_camera(  self._stage, 
-                                        self.brand_camera_model, 
+                                        #self.brand_camera_model, 
                                         self.combo_elements)
         
     def import_lights(self):
@@ -726,7 +741,7 @@ class TheliosLogic:
     def on_import_click(self, context: OnImportContext):
                 
         if context._camera_checkbox.model.get_value_as_bool():
-            self.import_camera(context._brand_camera_combo)
+            self.import_camera()
             self.alert_instance.post_notification_info("Camera imported successfully!")
             
         if context._lights_checkbox.model.get_value_as_bool():
@@ -744,7 +759,7 @@ class TheliosLogic:
         if not any([
             context._camera_checkbox.model.get_value_as_bool(),
             context._lights_checkbox.model.get_value_as_bool(),
-            context._limbo_checkbox.model.get_value_as_bool(),
+            #context._limbo_checkbox.model.get_value_as_bool(),
             context._settings_checkbox.model.get_value_as_bool()
         ]):
             
@@ -754,16 +769,17 @@ class TheliosLogic:
             
         context._camera_checkbox.model.set_value(False),
         context._lights_checkbox.model.set_value(False),
-        context._limbo_checkbox.model.set_value(False),
+        #context._limbo_checkbox.model.set_value(False),
         context._settings_checkbox.model.set_value(False)
             
     def on_import_click_all(self, context: OnImportContext):
                 
         print("--- Import: All ---")
         
-        self.import_camera(context._brand_camera_combo)
+        #self.import_camera(context._brand_camera_combo)
+        self.import_camera()
         self.import_lights()
-        self.import_limbo()
+        #self.import_limbo()
         self.import_settings()
         
         context._camera_checkbox.model.set_value(False),
@@ -773,11 +789,12 @@ class TheliosLogic:
         
         self.alert_instance.post_notification_info("Full template imported successfully!")
         
+    #MARK: VIEW
     # View functions -------------------------------------------------------------------------------------
 
     def clear_and_populate_combo(self, combobox_model):
         
-        payload_list = usd_tools.get_filtered_scopes()
+        payload_list = self.usd_tools.get_filtered_scopes()
         
         for item in combobox_model.get_item_children():
             combobox_model.remove_item(item)
@@ -793,7 +810,7 @@ class TheliosLogic:
         self._get_payloads_lenght()
                     
     def _get_selected_scope(self, combobox_model):
-        payload_list = usd_tools.get_filtered_scopes()
+        payload_list = self.usd_tools.get_filtered_scopes()
         
         combo_string = combobox_model.get_item_value_model()
         combo_string_index = combo_string.as_int
@@ -803,24 +820,24 @@ class TheliosLogic:
         
         scopes_to_keep = constants.SCOPES_TO_KEEP
         print(f"Selected scope: {combo_string}")
-        usd_tools.hide_all_scopes_except(combo_string_value, scopes_to_keep)
+        self.usd_tools.hide_all_scopes_except(combo_string_value, scopes_to_keep)
         
     def _get_selected_scope_string(self, model_string):
         
         print(f" ----------- Selected scope: {model_string}")
         
         scopes_to_keep = constants.SCOPES_TO_KEEP
-        usd_tools.hide_all_scopes_except(model_string, scopes_to_keep)
+        self.usd_tools.hide_all_scopes_except(model_string, scopes_to_keep)
         
     def _build_view_slider(self):
-        payload_list = usd_tools.get_filtered_scopes()
+        payload_list = self.usd_tools.get_filtered_scopes()
         len_payloads = len(payload_list)
         self.start_slider = ui.IntSlider(value=1,min=1, max=len_payloads, step=1, style={"margin":3}).model
         return self.start_slider
     
     def _on_slider_changed(self, value):
         print(f"Slider value: {value}")
-        payload_list = usd_tools.get_filtered_scopes()
+        payload_list = self.usd_tools.get_filtered_scopes()
         
         current_model_selected = payload_list[value.as_int - 1]
         self._get_selected_scope_string(current_model_selected)
@@ -828,11 +845,12 @@ class TheliosLogic:
         self.model.slider_view_model.set_value(str(current_model_selected))
             
     def _get_payloads_lenght(self):
-        payload_list = usd_tools.get_filtered_scopes()
+        payload_list = self.usd_tools.get_filtered_scopes()
         return len(payload_list)
         
         #need some fixes here
         
+    #MARK: MATS 
     # Materials functions ---------------------------------------------------------------------------------
     
     def _fill_combo(self, model, items: list[str]):
@@ -859,7 +877,7 @@ class TheliosLogic:
         print(f"{cat} - {subcat} - {code} - {name}")
         
         mat_name = f"{code}_{name}"
-        dest_folder = constants.MAT_LIBRARY_PATH + f"\\{cat}\\{subcat}\\{mat_name}"
+        dest_folder = constants.MAT_LIBRARY_PATH + f"\\{cat}\\Materials\\{subcat}\\{mat_name}"
         
         if not os.path.exists(dest_folder):
             os.makedirs(dest_folder)
@@ -888,3 +906,71 @@ class TheliosLogic:
             os.rename(final_dest_fld, f"{dest_fld}\\{new_name}.usda")
             print(f"Material renamed to '{new_name}.usda' successfully.")
             
+    def find_suggestions(self, limit=5):
+        
+        input_text = self.model.search_mat_model.get_value_as_string()
+        mat_list = self.get_all_mat_library()
+        
+        if not input_text:
+            return []
+        
+        suggestions = process.extract(input_text, mat_list, limit=limit)
+        print(f"Suggestions for '{input_text}': {suggestions}")
+        return suggestions
+    
+    def pop_combo_with_suggestions(self, combo_model):
+        mat_dict = self.get_all_mat_library()
+        # nomi soli per il display
+        names = list(mat_dict.keys())
+        
+        input_text = self.model.search_mat_model.get_value_as_string().upper()
+        suggestions = process.extract(input_text, names, limit=constants.MAT_LIMIT_SEARCH)
+        
+        suggested_names = [f"{s[0]} - {s[1]}%" for s in suggestions]
+        
+        self._fill_combo(combo_model, suggested_names)
+        
+        # salva la mappa per dopo
+        self.mat_paths_dict = mat_dict
+        
+    def get_all_mat_library(self):
+        mat_dict = {}
+        for root, dirs, files in os.walk(constants.MAT_LIBRARY_PATH):
+            for file in files:
+                if file.endswith(".Usda") or file.endswith(".usda"):
+                    full_path = os.path.join(root, file)
+                    mat_dict[file] = full_path  # nome → percorso
+                    
+        print(mat_dict)
+        return mat_dict
+    
+    def import_material_to_stage(self, result_combo):
+        index_mat = result_combo.get_item_value_model().get_value_as_int()
+        children_mat = result_combo.get_item_children()
+        
+        if 0 <= index_mat < len(children_mat):
+            selected_name = result_combo.get_item_value_model(children_mat[index_mat]).as_string
+            
+        final_name = selected_name.split(" - ")[0]  # estrai il nome reale
+        final_name_no_ext = final_name.split(".usda")[0]
+        
+        print(f"Selected material: {final_name}")    
+        if final_name in self.mat_paths_dict:
+            full_path = self.mat_paths_dict[final_name]
+            print(f"Importing material from: {full_path}")
+            
+            self.usd_tools.create_reference_under_parent(
+                asset_usd_path=full_path,
+                material_prim_in_file="",                     
+                parent_path=constants.MATERIAL_TARGET,
+                local_name=final_name_no_ext
+            )
+    
+    def _get_in_scene_materials(self):
+        stage = omni.usd.get_context().get_stage()
+        materials = self.usd_tools.get_materials_in_looks_scope(stage)
+        
+        mat_names = [mat.GetName() for mat in materials]
+        #print(f"Materials in scene: {mat_names}")
+        return mat_names
+        
